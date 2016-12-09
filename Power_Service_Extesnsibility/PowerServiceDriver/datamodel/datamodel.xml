@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DataModelInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.qualisystems.com/ResourceManagement/DataModelSchema.xsd">
+  <Attributes>
+    <AttributeInfo Name="Auto Add To Reservation" Type="Boolean" DefaultValue="False" IsReadOnly="false">
+      <Rules Override="false">
+	     <Rule Name="Setting" />
+      </Rules>
+    </AttributeInfo>
+  </Attributes>
+  <ResourceFamilies>
+    <ResourceFamily Name="Extensibility Services" Description="" IsAdminOnly="true" IsService="true" ServiceType="Regular">
+      <AttachedAttributes>
+      </AttachedAttributes>
+      <AttributeValues>
+      </AttributeValues>
+      <Models>
+      </Models>
+      <Categories />
+    </ResourceFamily>
+    
+  </ResourceFamilies>
+  <DriverDescriptors>
+      <DriverDescriptor Name="{{ cookiecutter.driver_name }}" DriverType="PythonDriver" />
+  </DriverDescriptors>
+</DataModelInfo>

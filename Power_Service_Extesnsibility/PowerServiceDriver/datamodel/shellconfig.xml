@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ShellsConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.qualisystems.com/ResourceManagement/ShellsConfigurationSchema.xsd">
+<ResourceTemplates>
+    <ResourceTemplate Name="{{ cookiecutter.model_name }}" Model="{{ cookiecutter.model_name }}" Driver="{{cookiecutter.driver_name}}">
+        <Description></Description>
+        <AutoLoad Enable="false">
+            <Description>Description for autoload </Description>
+        </AutoLoad>
+        <Attributes>
+            
+        </Attributes>
+    </ResourceTemplate>    
+</ResourceTemplates>
+</ShellsConfiguration>

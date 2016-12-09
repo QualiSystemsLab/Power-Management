@@ -1,0 +1,24 @@
+<Shell>
+
+    <ShellAttributes>
+    </ShellAttributes>
+
+    <ShellModel Family="{{ cookiecutter.family_name }}">
+        <ResourceModel Name="{{ cookiecutter.model_name }}" Description="" SupportsConcurrentCommands="true">
+            <AttachedAttributes>
+                <AttachedAttribute Name="Auto Add To Reservation" IsOverridable="true" IsLocal="true">
+                  <AllowedValues />
+                </AttachedAttribute>
+            </AttachedAttributes>
+            <AttributeValues>
+                <AttributeValue Name="Auto Add To Reservation" Value="true" />
+              </AttributeValues>
+            <ParentModels />
+            <Drivers>
+                <DriverName>{{ cookiecutter.driver_name }}</DriverName>
+            </Drivers>
+            <Scripts />
+        </ResourceModel>
+
+    </ShellModel>
+</Shell>
