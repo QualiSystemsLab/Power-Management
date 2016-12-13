@@ -2,30 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0570e790-d842-4c1e-a702-bef4b4423647" name="Default" comment="first stage of the Power Service Driver.  Added in the hidden methods to check for a Power ON command, a Power OFF command, and a Shutdown Command; along with a itme in list finder, and write to output console.">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/.zip" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/.zip" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Driver.zip" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Driver.zip" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Extensibility.zip" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Extensibility.zip" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/null.zip" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/null.zip" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/powerservice.zip" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/powerservice.zip" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/.name" afterPath="$PROJECT_DIR$/.idea/.name" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/Power.iml" afterPath="$PROJECT_DIR$/.idea/Power.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/encodings.xml" afterPath="$PROJECT_DIR$/.idea/encodings.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/vcs.xml" afterPath="$PROJECT_DIR$/.idea/vcs.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/.name" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/.name" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/Power_Service_Extesnsibility.iml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/Power_Service_Extesnsibility.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/encodings.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/encodings.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/misc.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/misc.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/modules.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/workspace.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/driver.py" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/driver.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/drivermetadata.xml" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/drivermetadata.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/event_handlers/resources.py" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/event_handlers/resources.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/event_handlers/services.py" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/event_handlers/services.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/requirements.txt" afterPath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/requirements.txt" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/.zip" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Driver.zip" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/Power Service Extensibility.zip" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment/drivers/null.zip" afterPath="" />
     </list>
     <ignored path="Power.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -71,7 +51,7 @@
       <file leaf-file-name="drivermetadata.xml" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/drivermetadata.xml">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.33742332">
+            <state vertical-scroll-proportion="0.27091256">
               <caret line="15" column="51" selection-start-line="15" selection-start-column="51" selection-end-line="15" selection-end-column="51" />
               <folding />
             </state>
@@ -94,8 +74,8 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="305" />
-    <option name="y" value="99" />
+    <option name="x" value="377" />
+    <option name="y" value="22" />
     <option name="width" value="1920" />
     <option name="height" value="1200" />
   </component>
@@ -125,7 +105,6 @@
     </navigator>
     <panes>
       <pane id="Scope" />
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -200,10 +179,11 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/Power_Service_Extesnsibility" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
   </component>
   <component name="RunManager">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
@@ -343,10 +323,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="305" y="99" width="1920" height="1200" extended-state="0" />
+    <frame x="377" y="22" width="1920" height="1200" extended-state="0" />
     <editor active="false" />
     <layout>
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17493333" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17482886" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32996634" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -385,6 +365,32 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/driver.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="11" column="23" selection-start-line="11" selection-start-column="23" selection-end-line="11" selection-end-column="23" />
+          <folding>
+            <element signature="e#0#83#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/deployment.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="23" column="41" selection-start-line="23" selection-start-column="41" selection-end-line="23" selection-end-column="41" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/drivermetadata.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/driver.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -471,7 +477,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Power_Service_Extesnsibility/PowerServiceDriver/src/drivermetadata.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.33742332">
+        <state vertical-scroll-proportion="0.27091256">
           <caret line="15" column="51" selection-start-line="15" selection-start-column="51" selection-end-line="15" selection-end-column="51" />
           <folding />
         </state>
