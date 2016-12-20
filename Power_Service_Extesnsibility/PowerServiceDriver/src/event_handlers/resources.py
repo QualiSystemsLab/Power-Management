@@ -57,7 +57,7 @@ class ResourcesEvents:
         # for devices added, see if they have "Power ON" and call it
         # ##### DO POWER ON ###### #
         if len(res_list) > 0:
-            code = self.device_pwr.call_power_on(res_list)
+            code = self.device_pwr.call_power_on(res_list, 'AFTER RESOURCES CHANGED')
             if code < 1:
                 print "Error"
 
@@ -96,6 +96,6 @@ class ResourcesEvents:
         # for devices being removed, check for Shutdown, then power off, call if it has one
         # ##### DO POWER OFF ###### #
         if len(res_list) > 0:
-            code = self.device_pwr.call_power_off(res_list)
+            code = self.device_pwr.call_power_off(res_list, 'BEFORE RESOURCES CHANGED')
             if code < 1:
                 print "Error"

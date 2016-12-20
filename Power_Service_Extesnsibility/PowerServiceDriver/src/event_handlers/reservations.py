@@ -100,7 +100,7 @@ class ReservationEvents:
         #         sev_list.append(services.alias)
 
         if len(res_list) > 0:
-            return_code = self.device_pwr.call_power_off(res_list)
+            return_code = self.device_pwr.call_power_off(res_list, "BEFORE RESERVATION TERMINATED")
             print return_code
 
         if len(sev_list) > 0:
@@ -132,7 +132,7 @@ class ReservationEvents:
 
         # items added to reservation - do the power on
         if len(res_list) > 0:
-            return_code = self.device_pwr.call_power_on(res_list)
+            return_code = self.device_pwr.call_power_on(res_list, "ON RESERVATION STARTED")
             print return_code
 
         if len(sev_list) > 0:
@@ -163,7 +163,7 @@ class ReservationEvents:
         #         sev_list.append(services.alias)
 
         if len(res_list) > 0:
-            # return_code = self.device_pwr.call_power_off(res_list)
+            # return_code = self.device_pwr.call_power_off(res_list, "ON RESERVATION ENDED")
             # print return_code
             pass
 

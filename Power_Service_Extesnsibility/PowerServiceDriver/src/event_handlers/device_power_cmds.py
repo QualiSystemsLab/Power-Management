@@ -120,7 +120,7 @@ class device_power_mgmt:
 
         return cmd_name
 
-    def call_power_on(self, resource_list):
+    def call_power_on(self, resource_list, source):
         """
         Walks the input list of devices, and calls the white-listed power on command if that device has one
         :param resource_list: list of str
@@ -137,15 +137,16 @@ class device_power_mgmt:
                     self.report_info('Command "' + dev_cmd_name + '" called on ' + dev_name)
             return 1
         except QualiError as qe:
-            err = "Failed on AFTER RESOURCES CHANGED. " + str(qe)
+            err = "Failed on calling " + dev_cmd_name + " from " + source + ". " + str(qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
         except:
-            err = "Failed on AFTER RESOURCES CHANGED. Unexpected error: " + "'" + str(sys.exc_info()[0]) + "'"
+            err = "Failed on calling " + dev_cmd_name + " from " + source + ". Unexpected error: " + "'" +\
+                  str(sys.exc_info()[0]) + "'"
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
 
-    def call_power_off(self, resource_list):
+    def call_power_off(self, resource_list, source):
         """
         Walks the input list of devices, and calls the white-listed power down option (shutdown first, hard
         power off second) if that device has one
@@ -168,10 +169,11 @@ class device_power_mgmt:
                     self.report_info('Command "' + dev_cmd_name + '" called on ' + dev_name)
             return 1
         except QualiError as qe:
-            err = "Failed on BEFORE RESOURCES CHANGED. " + str(qe)
+            err = "Failed on calling " + dev_cmd_name + " from " + source + ". " + str(qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
         except:
-            err = "Failed on BEFORE RESOURCES CHANGED. Unexpected error: " + "'" + str(sys.exc_info()[0]) + "'"
+            err = "Failed on calling " + dev_cmd_name + " from " + source + ". Unexpected error: " + "'" + \
+                  str(sys.exc_info()[0]) + "'"
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
