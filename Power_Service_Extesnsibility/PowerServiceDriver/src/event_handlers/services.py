@@ -20,9 +20,6 @@ class ServicesEvents:
         self.logger = get_qs_logger("extensibility", "QS", "service")
         self.api_session = api_session
         self.id = reservation_id
-        self.power_on_wl = ["power_on", "Power On", "Power ON"]  # whitelist for power on commands
-        self.power_off_wl = ["power_off", "Power Off", "Power OFF"]  # whitelist for power off commands
-        self.shutdown_wl = ["Graceful Shutdown", "shutdown", "graceful_shutdown"]  # whitelist for shutdown cmds
 
     def write_message_to_output(self, message, severity_level=SEVERITY_INFO):
         """
@@ -58,68 +55,6 @@ class ServicesEvents:
         if write_to_output_window:
             self.write_message_to_output(message, SEVERITY_INFO)
 
-    def _item_in_list(self, i, l):
-        """
-        Returns Boolean if i in contained in l
-        :param i: str
-        :param l: list of str
-        :return: boolean
-        """
-        try:
-            idx = l.index(i)
-            return True
-        except:
-            return False
-
-    def _has_power_on(self, cmd_list):
-        """
-        Checks to see if the cmd_list contains one of the whitelisted power on commands
-        returns command name if found, else ''
-        :param cmd_list: list of str
-        :return: str
-        """
-        cmd_name = ''
-        for each in cmd_list:
-            check = self._item_in_list(each, self.power_on_wl)
-            if check:
-                cmd_name = each
-                break
-
-        return cmd_name
-
-    def _has_power_off(self, cmd_list):
-        """
-        Checks to see if the cmd_list contains one of the whitelisted power off commands
-        return command name if found, else ''
-        :param cmd_list: list of str
-        :return: boolean
-        """
-        cmd_name = ''
-        for each in cmd_list:
-            check = self._item_in_list(each, self.power_off_wl)
-            if check:
-                cmd_name = each
-                break
-
-        return cmd_name
-
-    def _has_shutdown(self, cmd_list):
-        """
-        Checks to see if the cmd_list contains one of the whitelisted shutdown commands
-        returns command name if found, else ''
-        :param cmd_list:
-        :return:
-        """
-        check = False
-        cmd_name = ''
-        for each in cmd_list:
-            check = self._item_in_list(each, self.shutdown_wl)
-            if check:
-                cmd_name = each
-                break
-
-        return check, cmd_name
-
     def after_services_changed(self, context, action_details, resources_details, service_details,
                                old_service_attributes_details, removed_services, added_services, modified_services,
                                services_modified_attributes):
@@ -153,30 +88,6 @@ class ServicesEvents:
         # modifiedResources = ResourcesDetails(modified_services)
         # attributePrechange = AttributesDetails(old_service_attributes_details)
         # attributesPostChange = AttributesDetails(services_modified_attributes)
-
-        # for services being added, check for Power On, call if it has one
-        # ##### DO POWER ON ###### #
-        serv_list = []
-        for item in addedServices.resources:
-            if '/' not in item.fullname:
-                serv_list.append(item.name)
-
-        if len(serv_list) > 0:
-            try:
-                for serv_name in serv_list:
-                    serv_cmd_list = self.api_session.GetServiceCommands(serv_name).Commands
-                    serv_cmd_name = self._has_power_on(serv_cmd_list)
-                    if serv_cmd_name != '':
-                        # self.api_session.EnqueueServiceCommand(self.id, serv_name, serv_cmd_name)
-                        # -- Old command for driver build commands only - updated is ExecuteCommand for all
-                        self.api_session.EnqueueCommand(self.id, serv_name, 'Service', serv_cmd_name)
-                        self.report_info('Command "' + serv_cmd_name + '" called on ' + serv_name)
-            except QualiError as qe:
-                err = "Failed on AFTER RESOURCES CHANGED. " + str(qe)
-                self.report_error(error_message=err, write_to_output_window=True)
-            except:
-                err = "Failed on AFTER RESOURCES CHANGED. Unexpected error: " + str(sys.exc_info()[0])
-                self.report_error(error_message=err, write_to_output_window=True)
 
 
     def before_services_changed(self, context, action_details, resources_details, service_details,
@@ -212,32 +123,6 @@ class ServicesEvents:
         # modifiedResources = ResourcesDetails(modified_services)
         # attributePrechange = AttributesDetails(old_service_attributes_details)
         # attributesPostChange = AttributesDetails(services_modified_attributes)
-
-        # for Services being removed, check for Shutdown, then power off, call if it has one
-        # ##### DO POWER OFF ###### #
-        serv_list = []
-        for item in removedServices.resources:
-            if '/' not in item.fullname:
-                serv_list.append(item.name)
-
-        if len(serv_list) > 0:
-            try:
-                for serv_name in serv_list:
-                    serv_cmd_list = self.api_session.GetServiceCommands(serv_name).Commands
-                    serv_cmd_name = self._has_shutdown(serv_cmd_list)
-                    if serv_cmd_name == '':
-                        serv_cmd_name = self._has_power_off(serv_cmd_list)
-                    if serv_cmd_name != '':
-                        # self.api_session.EnqueueServiceCommand(self.id, serv_name, serv_cmd_name)
-                        # -- Old command for driver build commands only - updated is ExecuteCommand for all
-                        self.api_session.EnqueueCommand(self.id, serv_name, 'Service', serv_cmd_name)
-                        self.report_info('Command "' + serv_cmd_name + '" called on ' + serv_name)
-            except QualiError as qe:
-                err = "Failed on BEFORE RESOURCES CHANGED. " + str(qe)
-                self.report_error(error_message=err, write_to_output_window=True)
-            except:
-                err = "Failed on BEFORE RESOURCES CHANGED. Unexpected error: " + str(sys.exc_info()[0])
-                self.report_error(error_message=err, write_to_output_window=True)
 
     def before_my_service_changed(self, context, action_details, resources_details, service_details,
                                   old_service_attributes_details, removed_services, added_services, modified_services,

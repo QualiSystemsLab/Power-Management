@@ -1,11 +1,14 @@
 from input_converters import *
 from cloudshell.shell.core.driver_context import ResourceCommandContext
-from cloudshell.core.logger.qs_logger import get_qs_logger
+from device_power_cmds import *
 
 
 class ReservationEvents:
-    def __init__(self):
+    def __init__(self, api_session, reservation_id):
         self.logger = get_qs_logger("extensibility", "QS", "service")
+        self.device_pwr = device_power_mgmt(api_session, reservation_id)
+        self.id = reservation_id
+        self.api_session = api_session
         pass
 
     def after_reservation_created(self, context, action_details, resources_details, service_details):
@@ -82,10 +85,27 @@ class ReservationEvents:
         self.logger.info("resources details: " + resources_details)
         self.logger.info("service details: " + service_details)
 
-        actionDetails = ActionDetails(action_details)
+        # actionDetails = ActionDetails(action_details)
         resourcesDetails = ResourcesDetails(resources_details)
-        serviceDetails = ServiceDetails(service_details)
-        pass
+        # servicesDetails = ServicesDetails(service_details)
+
+        res_list = []
+        for resource in resourcesDetails.resources:
+            if '/' not in resource.fullname:
+                res_list.append(resource.name)
+
+        sev_list = []
+        # for services in servicesDetails.services:
+        #     if '/' not in services.alias:
+        #         sev_list.append(services.alias)
+
+        if len(res_list) > 0:
+            return_code = self.device_pwr.call_power_off(res_list)
+            print return_code
+
+        if len(sev_list) > 0:
+            pass
+
 
     def on_reservation_started(self, context, resources_details, service_details):
         """
@@ -99,8 +119,24 @@ class ReservationEvents:
         self.logger.info("service details: " + service_details)
 
         resourcesDetails = ResourcesDetails(resources_details)
-        serviceDetails = ServiceDetails(service_details)
-        pass
+        # servicesDetails = ServicesDetails(service_details)
+
+        res_list = []
+        for resource in resourcesDetails.resources:
+            if '/' not in resource.fullname:
+                res_list.append(resource.name)
+
+        sev_list = []
+        # for service in servicesDetails.services:
+        #     sev_list.append(service.alias)
+
+        # items added to reservation - do the power on
+        if len(res_list) > 0:
+            return_code = self.device_pwr.call_power_on(res_list)
+            print return_code
+
+        if len(sev_list) > 0:
+            pass
 
     def on_reservation_ended(self, context, resources_details, service_details):
         """
@@ -114,5 +150,22 @@ class ReservationEvents:
         self.logger.info("service details: " + service_details)
 
         resourcesDetails = ResourcesDetails(resources_details)
-        serviceDetails = ServiceDetails(service_details)
-        pass
+        # servicesDetails = ServicesDetails(service_details)
+
+        res_list = []
+        for resource in resourcesDetails.resources:
+            if '/' not in resource.fullname:
+                res_list.append(resource.name)
+
+        sev_list = []
+        # for services in servicesDetails.services:
+        #     if '/' not in services.alias:
+        #         sev_list.append(services.alias)
+
+        if len(res_list) > 0:
+            # return_code = self.device_pwr.call_power_off(res_list)
+            # print return_code
+            pass
+
+        if len(sev_list) > 0:
+            pass

@@ -46,13 +46,12 @@ class ServicesDetails:
         """
         lines = services_details.split('\n')
         curline = 1
-        rcount = 0
         self.services = []
         """:type : list[ServiceDetails]"""
-        while curline < lines.count():
+        while curline < len(lines):
             if len(lines[curline].strip()) > 0:
-                self.services[rcount] = ServiceDetails(lines[curline])
-                rcount += 1
+                self.services.append(ServiceDetails(lines[curline]))
+            curline += 1
 
 
 class ResourceDetails:

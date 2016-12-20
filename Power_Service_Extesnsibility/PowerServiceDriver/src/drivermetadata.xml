@@ -1,7 +1,7 @@
 <Driver Description="Power Service Extensibility - Designed to react to changes in the sandbox and toggle power accordingly"
         MainClass="driver.PowerService" Name="Power Service Extensibility" Version="1.0.0">
     <Layout>
-        <Category Name="Hidden Commands2">
+        <Category Name="Hidden Commands">
             <Command Name="AfterReservationCreated"/>
             <Command Name="AfterReservationExtended"/>
             <Command Name="BeforeReservationExtended"/>
@@ -19,8 +19,7 @@
             <Command Name="BeforeMyServiceRemoved_Sync"/>
             <Command Name="AfterResourcesChanged"/>
             <Command Name="BeforeResourcesChanged"/>
-            
+            <Command Name="Cleanup"/>
         </Category>
-
     </Layout>
 </Driver>
