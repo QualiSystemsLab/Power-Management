@@ -1,0 +1,18 @@
+{
+	"full_name": "Anonymous",
+	"email": "info@quali.com",
+	"github_username": "qualisystemslab",
+	"category" : "Services",
+	"project_name": "Shell",
+	"family_name" : "Extensibility Services",
+	"project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '_').replace('-','_') }}",
+	"model_name" : "{{ cookiecutter.project_slug.replace('_', ' ').title().replace(' ','') }}",
+	"driver_name" : "{{ cookiecutter.model_name }}Driver",
+	"project_short_description": "Describe the purpose of your CloudShell shell",
+	"release_date": "2016-9-1",
+	"pypi_username": "{{ cookiecutter.github_username }}",
+	"year": "2016",
+	"version": "0.1.0",
+	"server_version" : "7.0",
+	"use_pypi_deployment_with_travis": "n"
+}

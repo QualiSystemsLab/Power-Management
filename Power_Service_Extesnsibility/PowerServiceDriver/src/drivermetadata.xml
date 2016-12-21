@@ -1,0 +1,25 @@
+<Driver Description="Power Service Extensibility - Designed to react to changes in the sandbox and toggle power accordingly"
+        MainClass="driver.PowerService" Name="Power Service Extensibility" Version="1.0.0">
+    <Layout>
+        <Category Name="Hidden Commands">
+            <Command Name="AfterReservationCreated"/>
+            <Command Name="AfterReservationExtended"/>
+            <Command Name="BeforeReservationExtended"/>
+            <Command Name="BeforeReservationTerminated_Sync"/>
+            <Command Name="OnReservationStarted"/>
+            <Command Name="OnReservationEnded_Sync"/>
+            <Command Name="AfterConnectionsChanged"/>
+            <Command Name="AfterMyConnectionsChanged"/>
+            <Command Name="BeforeConnectionsChanged"/>
+            <Command Name="BeforeMyConnectionsChanged"/>
+            <Command Name="AfterServicesChanged"/>
+            <Command Name="BeforeServicesChanged"/>
+            <Command Name="BeforeMyServiceChanged_Sync"/>
+            <Command Name="BeforeServicesRemoved"/>
+            <Command Name="BeforeMyServiceRemoved_Sync"/>
+            <Command Name="AfterResourcesChanged"/>
+            <Command Name="BeforeResourcesChanged"/>
+            <Command Name="Cleanup"/>
+        </Category>
+    </Layout>
+</Driver>

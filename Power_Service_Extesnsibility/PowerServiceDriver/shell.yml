@@ -1,0 +1,7 @@
+shell:
+    name: {{cookiecutter.project_name}}
+    author: {{cookiecutter.full_name}}
+    email: {{cookiecutter.email}}
+    description: {{cookiecutter.project_short_description}}
+    version: {{cookiecutter.version}}
+    driver_name: {{cookiecutter.driver_name}}
