@@ -276,64 +276,64 @@ class power_sweep(object):
 ################################
 def main():
     local = power_sweep()
-    # local.create_reservation()
-    # local.build_resource_list()
-    #
-    # # master loop to turn items off
-    # for resource in local.resource_list:
-    #     rand = random.random()
-    #     path = resource.FullPath
-    #     name = resource.FullName
-    #     power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
-    #     control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
-    #
-    #
-    #     # debug logging
-    #     logging.debug('Inspecting %s', resource.FullName)
-    #     logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
-    #     logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
-    #     logging.debug('Random Number = %s', str(rand))
-    #
-    #     # if it's already off, try to turn some off anyway (5%)
-    #     if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
-    #         local.exclude_resource(path)
-    #         local.hard_power_off(path)
-    #         local.include_resource(path)
-    #         logging.info('Power Off via API called on: %s', name)
-    #
-    #     # I'm on and in a normal status - turn me off
-    #     elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
-    #         #add to reservation
-    #         local.add_items_to_reservation(path)
-    #         logging.info('%s Added to ResID: %s', path, local.res_id)
-    #
-    #         # call power off method
-    #         local.power_sweep_off(path, name)
-    #
-    #     # I'm on and in a known bad status - random set try to turn off anyway
-    #     elif power_status == 'ON' \
-    #         and control_status == local.configs["audit_attribute_2_bad"] \
-    #         and rand <= local.configs["audit_gate_attribute_2"]:
-    #                     #add to reservation
-    #         local.add_items_to_reservation(path)
-    #         logging.info('%s Added to ResID: %s', path, local.res_id)
-    #
-    #         # call power off method
-    #         local.power_sweep_off(path, name)
-    #
-    #     # I'm on and in a all other bad status - random set try to turn off anyway
-    #     elif power_status == 'ON'\
-    #         and not control_status == local.configs["audit_attribute_2_bad"] \
-    #         and rand <= local.configs["audit_gate_default"]:
-    #                     #add to reservation
-    #         local.add_items_to_reservation(path)
-    #         logging.info('%s Added to ResID: %s', path, local.res_id)
-    #
-    #         # call power off method
-    #         local.power_sweep_off(path, name)
-    #
-    # # end master loop
-    # local.end_reservation()  # immediately kill reservation releasing devices back to the pool
+    local.create_reservation()
+    local.build_resource_list()
+
+    # master loop to turn items off
+    for resource in local.resource_list:
+        rand = random.random()
+        path = resource.FullPath
+        name = resource.FullName
+        power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
+        control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
+
+
+        # debug logging
+        logging.debug('Inspecting %s', resource.FullName)
+        logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
+        logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
+        logging.debug('Random Number = %s', str(rand))
+
+        # if it's already off, try to turn some off anyway (5%)
+        if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
+            local.exclude_resource(path)
+            # local.hard_power_off(path)
+            local.include_resource(path)
+            logging.info('Power Off via API called on: %s', name)
+
+        # I'm on and in a normal status - turn me off
+        elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
+            #add to reservation
+            local.add_items_to_reservation(path)
+            logging.info('%s Added to ResID: %s', path, local.res_id)
+
+            # call power off method
+            local.power_sweep_off(path, name)
+
+        # I'm on and in a known bad status - random set try to turn off anyway
+        elif power_status == 'ON' \
+            and control_status == local.configs["audit_attribute_2_bad"] \
+            and rand <= local.configs["audit_gate_attribute_2"]:
+                        #add to reservation
+            local.add_items_to_reservation(path)
+            logging.info('%s Added to ResID: %s', path, local.res_id)
+
+            # call power off method
+            local.power_sweep_off(path, name)
+
+        # I'm on and in a all other bad status - random set try to turn off anyway
+        elif power_status == 'ON'\
+            and not control_status == local.configs["audit_attribute_2_bad"] \
+            and rand <= local.configs["audit_gate_default"]:
+                        #add to reservation
+            local.add_items_to_reservation(path)
+            logging.info('%s Added to ResID: %s', path, local.res_id)
+
+            # call power off method
+            local.power_sweep_off(path, name)
+
+    # end master loop
+    local.end_reservation()  # immediately kill reservation releasing devices back to the pool
 
     # build a new complete list of devices and scrap power data
     local.build_reporting_list()
@@ -376,7 +376,6 @@ def main():
             f.close()
 
     # run the length of the report_M (convert to a single list, line by line, write to csv file)
-    # length = len(local.report_m['Date'])
     length = len(local.report_m[local.headers[0]])
     for idx in xrange(length):
         line = []
@@ -416,11 +415,9 @@ def main():
     local.close_ms_sql_connection()
     local.end_time = local._get_dts()
 
-    logging.debug('Start Time: %s', self.start_time)
-    logging.debug('End Time: %s', self.end_time)
+    logging.info('Start Time: %s', local.start_time)
+    logging.info('End Time: %s', local.end_time)
 
-    my_lookup = local.cs_session.FindResources(attributeValues=[{'Name':'Power_Status', 'Value':'ON'}]).Resources
-    # print 'stop here'
 
 if __name__ == '__main__':
     main()
