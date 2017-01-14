@@ -147,8 +147,10 @@ class power_sweep(object):
 
     def end_reservation(self):
         self.cs_session.EndReservation(self.res_id)
+        logging.info('Ended Reservation %s', self.res_id)
 
     def _get_resources_in_range(self, family):
+        logging.debug('Query FindResourcesInTimeRange Family:%s, EndTime:%s', family, self.reservation.EndTime)
         return self.cs_session.FindResourcesInTimeRange(resourceFamily=family,
                                                         untilTime=self.reservation.EndTime,
                                                         maxResults=MAX_RESULTS).Resources
@@ -160,6 +162,7 @@ class power_sweep(object):
             logging.info("Looked up items available from family %s", each)
 
     def _get_resource_list(self, family):
+        logging.debug('Query FindResources Family:%s', family)
         return self.cs_session.FindResources(resourceFamily=family, maxResults=MAX_RESULTS).Resources
 
     def build_reporting_list(self):
@@ -194,12 +197,15 @@ class power_sweep(object):
 
     def exclude_resource(self, resource_full_path):
         self.cs_session.ExcludeResource(resource_full_path)
+        logging.info('Excluded Resource %s', resource_full_path)
 
     def include_resource(self, resource_full_path):
         self.cs_session.IncludeResource(resource_full_path)
+        logging.info('Included Resource %s', resource_full_path)
 
     def hard_power_off(self, resource_full_path):
         self.cs_session.PowerOffResource(resourceFullPath=resource_full_path)
+        logging.info("API Power cmd call 'PowerOffResource' %s", resource_full_path)
 
     def _has_shutdown(self, cmd_list):
         cmd_name = ''
@@ -236,8 +242,9 @@ class power_sweep(object):
                                                targetType='Resource',
                                                commandName=device_cmd)
                 logging.info('%s command executed on %s', device_cmd, resource_name)
-            except:
+            except Exception as e:
                 logging.warning('Failed to execute %s on %s', device_cmd, resource_name)
+                logging.exception("message")
         else:
             self.cs_session.SetAttributeValue(resourceFullPath=resource_full_path,
                                               attributeName=self.configs["audit_attribute_2"],
@@ -251,26 +258,36 @@ class power_sweep(object):
                                            database=self.configs["sql_database"])
             self.sql_cursor = self.sqlconn.cursor()
             self.sql_connection = True
-        except Exception:
-            pass
+            logging.info('MS SQL Connection Opened to: %s - Table', self.configs["sql_server_address"],
+                         self.configs["sql_database"])
+            logging.debug('MS SQL login %s:%s', self.configs["sql_server_user"],
+                          base64.b64decode(self.configs["sql_server_password"]))
+        except Exception as e:
+            logging.critical('Failed to connect to MS SQL')
+            logging.exception("message")
+            logging.critical('MS SQL Connection Opened to: %s - Table', self.configs["sql_server_address"],
+                             self.configs["sql_database"])
+            logging.critical('MS SQL login %s:%s', self.configs["sql_server_user"],
+                             base64.b64decode(self.configs["sql_server_password"]))
+            self.sql_connection = False
 
     def close_ms_sql_connection(self):
         if self.sql_connection:
             self.sqlconn.close()
 
 
-    def open_csv(self):
-        with open(self.csv_file_path, 'a') as self.csv_f:
-            self.csvout = csv.writer(self.csv_f)
-
-
-    def write_line_to_csv(self, line):
-        # with open(self.csv_file_path, 'wb') as f:
-        #     self.csvout = csv.writer(f)
-        self.csvout.writerow(line)
-
-    def close_csv(self):
-        self.csv_f.close()
+    # def open_csv(self):
+    #     with open(self.csv_file_path, 'a') as self.csv_f:
+    #         self.csvout = csv.writer(self.csv_f)
+    #
+    #
+    # def write_line_to_csv(self, line):
+    #     # with open(self.csv_file_path, 'wb') as f:
+    #     #     self.csvout = csv.writer(f)
+    #     self.csvout.writerow(line)
+    #
+    # def close_csv(self):
+    #     self.csv_f.close()
 
 
 ################################
@@ -298,6 +315,7 @@ def main():
         if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
             local.exclude_resource(path)
             # local.hard_power_off(path)
+            time.sleep(2)
             local.include_resource(path)
             logging.info('Power Off via API called on: %s', name)
 
@@ -364,6 +382,7 @@ def main():
                         current_attribute_value = attribute.Value  # if found, override the default value
 
             local.report_m[header].append(current_attribute_value)
+            logging.debug('info added to report_m.%s:%s', header, current_attribute_value)
 
     # open SQL connection
     local.open_ms_sql_connection()
@@ -383,6 +402,7 @@ def main():
             temp = local.report_m[h]
             line.append(temp[idx])
 
+        logging.info('Report line generated %s', str(line))
         # print line
 
         # send to sql
@@ -400,10 +420,22 @@ def main():
 
         sql_line += ')'  # close the sql line
 
+        logging.debug('Built SQL command')
+        logging.debug('Source= %s', line)
+        logging.debug('Result= %s', sql_line)
+
         # write Entry to SQL DB
-        # print sql_line
-        local.sql_cursor.execute(sql_line)
-        local.sqlconn.commit()
+        if local.sql_connection:
+            try:
+                local.sql_cursor.execute(sql_line)
+                local.sqlconn.commit()
+
+                logging.info('MS SQL Cursor send: %s', sql_line)
+            except Exception as e:
+                logging.error('MS SQL Cursor Send Error: %s', sql_line)
+                logging.exception("message")
+
+        # print sql_line  # debug ling
 
         # then send to csv to save
         if local.configs["capture_csv"]:
