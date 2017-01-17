@@ -31,7 +31,15 @@ class power_sweep(object):
         self.end_time = ''
         logging.info('Script Started')
 
+        # build reporting headers (based on BI Tracking)
         self.headers = self.configs["report_headers"]
+
+        # create summary data points
+        self.devices_max_powersweep= 0
+        self.devices_off_powerdown = 0
+        self.devices_normal_powerdown = 0
+        self.devices_abnormal_powerdown = 0
+        self.devices_attribute_capture = 0
 
         #set the reporting location
         self.report_file = self.configs["report_file_path"] + "/" + self.configs["report_base_name"] + \
@@ -71,7 +79,7 @@ class power_sweep(object):
 
 
     def _get_dts(self):
-        return time.strftime('%Y-%m-%d %H:%M%:%S')
+        return time.strftime('%Y-%m-%d %H:%M:%S')
 
     def _send_email(self, subject, body, is_error=False):
         server = self.configs["smtp_server"]
@@ -149,11 +157,18 @@ class power_sweep(object):
         self.cs_session.EndReservation(self.res_id)
         logging.info('Ended Reservation %s', self.res_id)
 
+    def clean_reservation(self):
+        # don't want any services in the reservation, like the power service
+        res_details = self.cs_session.GetReservationDetails(self.res_id).ReservationDescription
+        for service in res_details.Services:
+            self.cs_session.RemoveServicesFromReservation(reservationId=self.res_id, services=[service.ServiceName])
+
     def _get_resources_in_range(self, family):
         logging.debug('Query FindResourcesInTimeRange Family:%s, EndTime:%s', family, self.reservation.EndTime)
         return self.cs_session.FindResourcesInTimeRange(resourceFamily=family,
                                                         untilTime=self.reservation.EndTime,
                                                         maxResults=MAX_RESULTS).Resources
+
 
     def build_resource_list(self):
         self.resource_list = []
@@ -275,6 +290,18 @@ class power_sweep(object):
         if self.sql_connection:
             self.sqlconn.close()
 
+    def write_summary(self):
+        f = open(self.configs["summary_filepath"], 'a')
+        f.write(self.configs["who_am_i"] + ' Completed' + '\n')
+        f.write('Start time: ' + self.start_time + '\n')
+        f.write('End time: ' + self.end_time + '\n')
+        f.write('Devices looked at for power down: ' + str(self.devices_max_powersweep) + '\n')
+        f.write('Devices found ON + GOOD and turned off: ' + str(self.devices_normal_powerdown) + '\n')
+        f.write('Devices already OFF and powered off again: ' + str(self.devices_off_powerdown) + '\n')
+        f.write('Devices ON + BAD and attempted to be turned off: ' + str(self.devices_abnormal_powerdown) + '\n')
+        f.write('===========================================================\n')
+        f.close()
+
 
     # def open_csv(self):
     #     with open(self.csv_file_path, 'a') as self.csv_f:
@@ -294,63 +321,79 @@ class power_sweep(object):
 def main():
     local = power_sweep()
     local.create_reservation()
+    local.clean_reservation()
+    time.sleep(2)
     local.build_resource_list()
 
     # master loop to turn items off
     for resource in local.resource_list:
-        rand = random.random()
-        path = resource.FullPath
-        name = resource.FullName
-        power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
-        control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
+
+        if len(resource.Reservations) == 0:
+            local.devices_max_powersweep += 1
+            rand = random.random()
+            path = resource.FullPath
+            name = resource.FullName
+            power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
+            control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
 
 
-        # debug logging
-        logging.debug('Inspecting %s', resource.FullName)
-        logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
-        logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
-        logging.debug('Random Number = %s', str(rand))
+            # debug logging
+            logging.debug('Inspecting %s', resource.FullName)
+            logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
+            logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
+            logging.debug('Random Number = %s', str(rand))
 
-        # if it's already off, try to turn some off anyway (5%)
-        if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
-            local.exclude_resource(path)
-            # local.hard_power_off(path)
-            time.sleep(2)
-            local.include_resource(path)
-            logging.info('Power Off via API called on: %s', name)
+            # if it's already off, try to turn some off anyway (5%)
+            if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
+                local.exclude_resource(path)
+                # local.hard_power_off(path)
+                time.sleep(2)
+                local.include_resource(path)
+                local.devices_off_powerdown += 1
+                logging.info('Power Off via API called on: %s', name)
 
-        # I'm on and in a normal status - turn me off
-        elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
-            #add to reservation
-            local.add_items_to_reservation(path)
-            logging.info('%s Added to ResID: %s', path, local.res_id)
 
-            # call power off method
-            local.power_sweep_off(path, name)
+            # I'm on and in a normal status - turn me off
+            elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
+                #add to reservation
+                local.add_items_to_reservation(path)
+                logging.info('%s Added to ResID: %s', path, local.res_id)
 
-        # I'm on and in a known bad status - random set try to turn off anyway
-        elif power_status == 'ON' \
-            and control_status == local.configs["audit_attribute_2_bad"] \
-            and rand <= local.configs["audit_gate_attribute_2"]:
-                        #add to reservation
-            local.add_items_to_reservation(path)
-            logging.info('%s Added to ResID: %s', path, local.res_id)
+                # call power off method
+                local.power_sweep_off(path, name)
+                local.devices_normal_powerdown += 1
 
-            # call power off method
-            local.power_sweep_off(path, name)
+            # I'm on and in a known bad status - random set try to turn off anyway
+            elif power_status == 'ON' \
+                and control_status == local.configs["audit_attribute_2_bad"] \
+                and rand <= local.configs["audit_gate_attribute_2"]:
+                            #add to reservation
+                local.add_items_to_reservation(path)
+                logging.info('%s Added to ResID: %s', path, local.res_id)
 
-        # I'm on and in a all other bad status - random set try to turn off anyway
-        elif power_status == 'ON'\
-            and not control_status == local.configs["audit_attribute_2_bad"] \
-            and rand <= local.configs["audit_gate_default"]:
-                        #add to reservation
-            local.add_items_to_reservation(path)
-            logging.info('%s Added to ResID: %s', path, local.res_id)
+                # call power off method
+                local.power_sweep_off(path, name)
+                local.devices_abnormal_powerdown += 1
 
-            # call power off method
-            local.power_sweep_off(path, name)
+            # I'm on and in a all other bad status - random set try to turn off anyway
+            elif power_status == 'ON'\
+                and not control_status == local.configs["audit_attribute_2_bad"] \
+                and rand <= local.configs["audit_gate_default"]:
+                            #add to reservation
+                local.add_items_to_reservation(path)
+                logging.info('%s Added to ResID: %s', path, local.res_id)
+
+                # call power off method
+                local.power_sweep_off(path, name)
+                local.devices_abnormal_powerdown += 1
+
+        else:
+            logging.debug('Skipped Auditing %s', resource.FullName)
+            logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
 
     # end master loop
+    sleep = 120 + (local.devices_normal_powerdown + local.devices_abnormal_powerdown) * 2
+    time.sleep(sleep)  # ensures the last power command can run
     local.end_reservation()  # immediately kill reservation releasing devices back to the pool
 
     # build a new complete list of devices and scrap power data
@@ -396,7 +439,9 @@ def main():
 
     # run the length of the report_M (convert to a single list, line by line, write to csv file)
     length = len(local.report_m[local.headers[0]])
+
     for idx in xrange(length):
+        local.devices_attribute_capture += 1
         line = []
         for h in local.headers:
             temp = local.report_m[h]
@@ -447,9 +492,12 @@ def main():
     local.close_ms_sql_connection()
     local.end_time = local._get_dts()
 
+    logging.info('Script Finished')
     logging.info('Start Time: %s', local.start_time)
     logging.info('End Time: %s', local.end_time)
 
+    # always call summary after end_time called
+    local.write_summary()
 
 if __name__ == '__main__':
     main()
