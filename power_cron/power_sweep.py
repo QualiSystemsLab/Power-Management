@@ -152,6 +152,8 @@ class power_sweep(object):
         logging.debug('Owner: %s', self.configs["qs_admin_username"])
         logging.debug('Start Time: %s', self.reservation.StartTime)
         logging.debug('End Time: %s', self.reservation.EndTime)
+        # sleep for setup
+        time.sleep(15)
 
     def end_reservation(self):
         self.cs_session.EndReservation(self.res_id)
@@ -162,6 +164,8 @@ class power_sweep(object):
         res_details = self.cs_session.GetReservationDetails(self.res_id).ReservationDescription
         for service in res_details.Services:
             self.cs_session.RemoveServicesFromReservation(reservationId=self.res_id, services=[service.ServiceName])
+
+        time.sleep(2)
 
     def _get_resources_in_range(self, family):
         logging.debug('Query FindResourcesInTimeRange Family:%s, EndTime:%s', family, self.reservation.EndTime)
@@ -264,6 +268,7 @@ class power_sweep(object):
             self.cs_session.SetAttributeValue(resourceFullPath=resource_full_path,
                                               attributeName=self.configs["audit_attribute_2"],
                                               attributeValue=self.configs["audit_attribute_2_fail"])
+            logging.info('No Power Off command available for %s', resource_full_path)
 
     def open_ms_sql_connection(self):
         try:
@@ -295,6 +300,7 @@ class power_sweep(object):
         f.write(self.configs["who_am_i"] + ' Completed' + '\n')
         f.write('Start time: ' + self.start_time + '\n')
         f.write('End time: ' + self.end_time + '\n')
+        f.write('Reservation: ' + self.res_id + '\n')
         f.write('Devices looked at for power down: ' + str(self.devices_max_powersweep) + '\n')
         f.write('Devices found ON + GOOD and turned off: ' + str(self.devices_normal_powerdown) + '\n')
         f.write('Devices already OFF and powered off again: ' + str(self.devices_off_powerdown) + '\n')
@@ -322,7 +328,6 @@ def main():
     local = power_sweep()
     local.create_reservation()
     local.clean_reservation()
-    time.sleep(2)
     local.build_resource_list()
 
     # master loop to turn items off
@@ -357,7 +362,6 @@ def main():
             elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
                 #add to reservation
                 local.add_items_to_reservation(path)
-                logging.info('%s Added to ResID: %s', path, local.res_id)
 
                 # call power off method
                 local.power_sweep_off(path, name)
@@ -369,7 +373,6 @@ def main():
                 and rand <= local.configs["audit_gate_attribute_2"]:
                             #add to reservation
                 local.add_items_to_reservation(path)
-                logging.info('%s Added to ResID: %s', path, local.res_id)
 
                 # call power off method
                 local.power_sweep_off(path, name)
@@ -381,7 +384,6 @@ def main():
                 and rand <= local.configs["audit_gate_default"]:
                             #add to reservation
                 local.add_items_to_reservation(path)
-                logging.info('%s Added to ResID: %s', path, local.res_id)
 
                 # call power off method
                 local.power_sweep_off(path, name)
@@ -475,7 +477,7 @@ def main():
                 local.sql_cursor.execute(sql_line)
                 local.sqlconn.commit()
 
-                logging.info('MS SQL Cursor send: %s', sql_line)
+                logging.debug('MS SQL Cursor send: %s', sql_line)
             except Exception as e:
                 logging.error('MS SQL Cursor Send Error: %s', sql_line)
                 logging.exception("message")

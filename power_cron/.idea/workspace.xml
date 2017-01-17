@@ -2,8 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a58b1ae2-f600-4f82-b218-f64138425e21" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/configs.json" afterPath="$PROJECT_DIR$/configs.json" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/power_sweep.py" afterPath="$PROJECT_DIR$/power_sweep.py" />
     </list>
     <ignored path="power_cron.iws" />
@@ -28,8 +26,8 @@
       <file leaf-file-name="power_sweep.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/power_sweep.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.19367284">
-              <caret line="391" column="19" selection-start-line="390" selection-start-column="66" selection-end-line="391" selection-end-column="19" />
+            <state vertical-scroll-proportion="0.33719134">
+              <caret line="302" column="53" selection-start-line="302" selection-start-column="53" selection-end-line="302" selection-end-column="53" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
               </folding>
@@ -40,7 +38,7 @@
       <file leaf-file-name="configs.json" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/configs.json">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-19.678572">
+            <state vertical-scroll-proportion="-21.714285">
               <caret line="32" column="28" selection-start-line="32" selection-start-column="28" selection-end-line="32" selection-end-column="28" />
               <folding />
             </state>
@@ -419,12 +417,12 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/power_sweep.py</url>
-          <line>321</line>
+          <line>327</line>
           <option name="timeStamp" value="35" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/power_sweep.py</url>
-          <line>494</line>
+          <line>496</line>
           <option name="timeStamp" value="38" />
         </line-breakpoint>
       </breakpoints>
@@ -827,18 +825,18 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/configs.json">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-19.678572">
-          <caret line="32" column="28" selection-start-line="32" selection-start-column="28" selection-end-line="32" selection-end-column="28" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/temp/summary.log">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/configs.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="-21.714285">
+          <caret line="32" column="28" selection-start-line="32" selection-start-column="28" selection-end-line="32" selection-end-column="28" />
           <folding />
         </state>
       </provider>
@@ -853,8 +851,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/power_sweep.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.19367284">
-          <caret line="391" column="19" selection-start-line="390" selection-start-column="66" selection-end-line="391" selection-end-column="19" />
+        <state vertical-scroll-proportion="0.33719134">
+          <caret line="302" column="53" selection-start-line="302" selection-start-column="53" selection-end-line="302" selection-end-column="53" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
           </folding>
