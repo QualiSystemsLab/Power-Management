@@ -278,7 +278,7 @@ class power_sweep(object):
                                            database=self.configs["sql_database"])
             self.sql_cursor = self.sqlconn.cursor()
             self.sql_connection = True
-            logging.info('MS SQL Connection Opened to: %s - Table', self.configs["sql_server_address"],
+            logging.info('MS SQL Connection Opened to: %s - Table %s', self.configs["sql_server_address"],
                          self.configs["sql_database"])
             logging.debug('MS SQL login %s:%s', self.configs["sql_server_user"],
                           base64.b64decode(self.configs["sql_server_password"]))
@@ -299,28 +299,14 @@ class power_sweep(object):
         f = open(self.configs["summary_filepath"], 'a')
         f.write(self.configs["who_am_i"] + ' Completed' + '\n')
         f.write('Start time: ' + self.start_time + '\n')
-        f.write('End time: ' + self.end_time + '\n')
+        f.write('  End time: ' + self.end_time + '\n')
         f.write('Reservation: ' + self.res_id + '\n')
-        f.write('Devices looked at for power down: ' + str(self.devices_max_powersweep) + '\n')
-        f.write('Devices found ON + GOOD and turned off: ' + str(self.devices_normal_powerdown) + '\n')
-        f.write('Devices already OFF and powered off again: ' + str(self.devices_off_powerdown) + '\n')
-        f.write('Devices ON + BAD and attempted to be turned off: ' + str(self.devices_abnormal_powerdown) + '\n')
+        f.write(str(self.devices_max_powersweep).rjust(5) + ' Devices inspected for Power Sweep\n')
+        f.write(str(self.devices_normal_powerdown).rjust(5) + ' Devices ON+GOOD hit\n')
+        f.write(str(self.devices_off_powerdown).rjust(5) + ' Devices OFF hit\n')
+        f.write(str(self.devices_abnormal_powerdown).rjust(5) + ' Devices ON+BAD hit\n')
         f.write('===========================================================\n')
         f.close()
-
-
-    # def open_csv(self):
-    #     with open(self.csv_file_path, 'a') as self.csv_f:
-    #         self.csvout = csv.writer(self.csv_f)
-    #
-    #
-    # def write_line_to_csv(self, line):
-    #     # with open(self.csv_file_path, 'wb') as f:
-    #     #     self.csvout = csv.writer(f)
-    #     self.csvout.writerow(line)
-    #
-    # def close_csv(self):
-    #     self.csv_f.close()
 
 
 ################################
@@ -329,6 +315,8 @@ def main():
     local.create_reservation()
     local.clean_reservation()
     local.build_resource_list()
+
+    logging.info('Starting Main Power Down Loop')
 
     # master loop to turn items off
     for resource in local.resource_list:
@@ -394,10 +382,13 @@ def main():
             logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
 
     # end master loop
+    logging.info('Main Power Down Loop complete')
     sleep = 120 + (local.devices_normal_powerdown + local.devices_abnormal_powerdown) * 2
     time.sleep(sleep)  # ensures the last power command can run
     local.end_reservation()  # immediately kill reservation releasing devices back to the pool
+    logging.debug('Reservation %s Terminated', local.res_id)
 
+    logging.info('Starting Reporting Sweep')
     # build a new complete list of devices and scrap power data
     local.build_reporting_list()
 
@@ -449,7 +440,7 @@ def main():
             temp = local.report_m[h]
             line.append(temp[idx])
 
-        logging.info('Report line generated %s', str(line))
+        logging.debug('Report line generated %s', str(line))
         # print line
 
         # send to sql
@@ -492,6 +483,8 @@ def main():
                 f.close()
 
     local.close_ms_sql_connection()
+    logging.info('Reporting Sweep Completed')
+
     local.end_time = local._get_dts()
 
     logging.info('Script Finished')
