@@ -41,9 +41,6 @@ class power_sweep(object):
         self.devices_abnormal_powerdown = 0
         self.devices_attribute_capture = 0
 
-        #set the reporting location
-        self.report_file = self.configs["report_file_path"] + "/" + self.configs["report_base_name"] + \
-                           time.strftime('%Y_%m_%d_%H_%M')
 
         self.report_dts = time.strftime('%Y-%m-%d %H:%M:00')  # report 'date time stamp' used for all entries
 
@@ -140,6 +137,7 @@ class power_sweep(object):
     def create_reservation(self):
         """
         Creates an immediate reservation and adds it to "self"
+        This is the master reservation (self.res_id)
         :return: None
         """
         self.reservation = self.cs_session.CreateImmediateReservation(reservationName=self.configs["reservation_name"],
@@ -156,23 +154,29 @@ class power_sweep(object):
         time.sleep(15)
 
     def end_reservation(self):
+        """
+        terminates the master reservation (self.res_id)
+        :return:
+        """
         self.cs_session.EndReservation(self.res_id)
         logging.info('Ended Reservation %s', self.res_id)
 
     def clean_reservation(self):
+        """
+        removes unwanted items that are automatically added to a reservation.
+        :return:
+        """
         # don't want any services in the reservation, like the power service
         res_details = self.cs_session.GetReservationDetails(self.res_id).ReservationDescription
         for service in res_details.Services:
             self.cs_session.RemoveServicesFromReservation(reservationId=self.res_id, services=[service.ServiceName])
-
-        time.sleep(2)
+            time.sleep(2)
 
     def _get_resources_in_range(self, family):
         logging.debug('Query FindResourcesInTimeRange Family:%s, EndTime:%s', family, self.reservation.EndTime)
         return self.cs_session.FindResourcesInTimeRange(resourceFamily=family,
                                                         untilTime=self.reservation.EndTime,
                                                         maxResults=MAX_RESULTS).Resources
-
 
     def build_resource_list(self):
         self.resource_list = []
@@ -190,18 +194,39 @@ class power_sweep(object):
             self.reporting_list += self._get_resource_list(fam)
 
     def get_resource_details(self, full_path):
+        """
+        Queries for a full set of details about the device
+        :param full_path:
+        :return:
+        """
         return self.cs_session.GetResourceDetails(full_path)
 
 
     def add_items_to_reservation(self, resource_full_path):
+        """
+        Adds a resource to the master reservation (self.res_id)
+        :param str resource_full_path:
+        :return:
+        """
         self.cs_session.AddResourcesToReservation(self.res_id, [resource_full_path])
         logging.info("%s added to ResID %s", resource_full_path, self.res_id)
 
     def remove_item_from_reservation(self, resource_full_path):
+        """
+        Removes listed item from the master reservation (self.res_id)
+        :param str resource_full_path:
+        :return:
+        """
         self.cs_session.RemoveResourcesFromReservation(self.res_id,[resource_full_path])
         logging.info('%s removed from ResId %s', resource_full_path, self.res_id)
 
     def _get_attribute_value(self, resource_full_path, attribute_name):
+        """
+        Queries the system for the current value of the listed attribute, if present (checks first)
+        :param str resource_full_path: full path to the resource
+        :param str attribute_name: attribute to query
+        :return: str
+        """
         val = ''
         att_list = []
         att_dict = self.cs_session.GetResourceDetails(resource_full_path).ResourceAttributes
@@ -215,18 +240,38 @@ class power_sweep(object):
         return val
 
     def exclude_resource(self, resource_full_path):
+        """
+        Calls the API to exclude the resource to allow operation without reservation
+        :param str resource_full_path: full path to the resource
+        :return:
+        """
         self.cs_session.ExcludeResource(resource_full_path)
         logging.info('Excluded Resource %s', resource_full_path)
 
     def include_resource(self, resource_full_path):
+        """
+        sets the resource to "include" status (normal)
+        :param str resource_full_path:
+        :return:
+        """
         self.cs_session.IncludeResource(resource_full_path)
         logging.info('Included Resource %s', resource_full_path)
 
     def hard_power_off(self, resource_full_path):
+        """
+        calls the api cmd PowerOffResource
+        :param str resource_full_path: full path to the resource
+        :return:
+        """
         self.cs_session.PowerOffResource(resourceFullPath=resource_full_path)
         logging.info("API Power cmd call 'PowerOffResource' %s", resource_full_path)
 
     def _has_shutdown(self, cmd_list):
+        """
+        checks the shutdown command list against the provided list
+        :param list of str cmd_list: list of commands to validate
+        :return: str command name (if found)
+        """
         cmd_name = ''
         for each in cmd_list:
             check = self._item_in_list(each.Name, self.configs["device_shutdown_commands"])
@@ -237,6 +282,11 @@ class power_sweep(object):
         return cmd_name
 
     def _has_power_off(self, cmd_list):
+        """
+        checks the power off commands list against the provided list
+        :param list of str cmd_list: list of commands to validate
+        :return: str command name (if found)
+        """
         cmd_name = ''
         for each in cmd_list:
             check = self._item_in_list(each.Name, self.configs["device_power_off_commands"])
@@ -247,6 +297,13 @@ class power_sweep(object):
         return cmd_name
 
     def power_sweep_off(self, resource_full_path, resource_name):
+        """
+        Looks for a shutdown command (and possibly a power off cmd) - if present then executes.
+        Commands are white-listed from the configs.  Uses this against a query of commands available on the device.
+        :param str resource_full_path: resource full path
+        :param str resource_name: resource name
+        :return: none
+        """
         device_cmd_list = self.cs_session.GetResourceCommands(resource_full_path).Commands
         device_cmd = self._has_shutdown(device_cmd_list)
 
@@ -271,6 +328,9 @@ class power_sweep(object):
             logging.info('No Power Off command available for %s', resource_full_path)
 
     def open_ms_sql_connection(self):
+        """
+        Opens a session to the MS SQL Database where record keeping/reporting for power mgt is kept.
+        """
         try:
             self.sqlconn = pymssql.connect(host=self.configs["sql_server_address"],
                                            user=self.configs["sql_server_user"],
@@ -292,14 +352,20 @@ class power_sweep(object):
             self.sql_connection = False
 
     def close_ms_sql_connection(self):
+        """
+        Closes the previously opened connection to MS SQL
+        """
         if self.sql_connection:
             self.sqlconn.close()
 
     def write_summary(self):
+        """
+        Adds to the summary log, designed to be a concise summary of each run's activities
+        """
         f = open(self.configs["summary_filepath"], 'a')
         f.write(self.configs["who_am_i"] + ' Completed' + '\n')
-        f.write('Start time: ' + self.start_time + '\n')
-        f.write('  End time: ' + self.end_time + '\n')
+        f.write(' Start time: ' + self.start_time + '\n')
+        f.write('   End time: ' + self.end_time + '\n')
         f.write('Reservation: ' + self.res_id + '\n')
         f.write(str(self.devices_max_powersweep).rjust(5) + ' Devices inspected for Power Sweep\n')
         f.write(str(self.devices_normal_powerdown).rjust(5) + ' Devices ON+GOOD hit\n')
