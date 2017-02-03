@@ -22,6 +22,7 @@ class device_power_mgmt:
         self.power_on_wl = ["power_on", "Power On", "Power ON"]  # whitelist for power on commands
         self.power_off_wl = ["power_off", "Power Off", "Power OFF"]  # whitelist for power off commands
         self.shutdown_wl = ["Graceful Shutdown", "shutdown", "graceful_shutdown"]  # whitelist for shutdown cmds
+        self.hard_power = 'False'
         # 'shutdown' is the official command in the Shell's Guidelines
         pass
 
@@ -157,7 +158,7 @@ class device_power_mgmt:
             for dev_name in resource_list:
                 dev_cmd_list = self.api_session.GetResourceCommands(dev_name).Commands
                 dev_cmd_name = self._has_shutdown(dev_cmd_list)
-                if dev_cmd_name == '':
+                if dev_cmd_name == '' and self.hard_power:
                     dev_cmd_name = self._has_power_off(dev_cmd_list)
                 if dev_cmd_name != '':
                     # self.api_session.EnqueueResourceCommand(self.id, dev_name, dev_cmd_name)

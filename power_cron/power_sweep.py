@@ -208,8 +208,14 @@ class power_sweep(object):
         :param str resource_full_path:
         :return:
         """
-        self.cs_session.AddResourcesToReservation(self.res_id, [resource_full_path])
-        logging.info("%s added to ResID %s", resource_full_path, self.res_id)
+        check = self.cs_session.GetResourceAvailability([resource_full_path]).Resources
+        if len(check[0].Reservations) == 0:
+            self.cs_session.AddResourcesToReservation(self.res_id, [resource_full_path])
+            logging.info("%s added to ResID %s", resource_full_path, self.res_id)
+            return True
+        else:
+            logging.info('Tried to add %s, but was unavailable', resource_full_path)
+            return False
 
     def remove_item_from_reservation(self, resource_full_path):
         """
@@ -415,33 +421,36 @@ def main():
             # I'm on and in a normal status - turn me off
             elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
                 #add to reservation
-                local.add_items_to_reservation(path)
+                check = local.add_items_to_reservation(path)
 
                 # call power off method
-                local.power_sweep_off(path, name)
-                local.devices_normal_powerdown += 1
+                if check:
+                    local.power_sweep_off(path, name)
+                    local.devices_normal_powerdown += 1
 
             # I'm on and in a known bad status - random set try to turn off anyway
             elif power_status == 'ON' \
                 and control_status == local.configs["audit_attribute_2_bad"] \
                 and rand <= local.configs["audit_gate_attribute_2"]:
                             #add to reservation
-                local.add_items_to_reservation(path)
+                check = local.add_items_to_reservation(path)
 
                 # call power off method
-                local.power_sweep_off(path, name)
-                local.devices_abnormal_powerdown += 1
+                if check:
+                    local.power_sweep_off(path, name)
+                    local.devices_abnormal_powerdown += 1
 
             # I'm on and in a all other bad status - random set try to turn off anyway
             elif power_status == 'ON'\
                 and not control_status == local.configs["audit_attribute_2_bad"] \
                 and rand <= local.configs["audit_gate_default"]:
                             #add to reservation
-                local.add_items_to_reservation(path)
+                check = local.add_items_to_reservation(path)
 
                 # call power off method
-                local.power_sweep_off(path, name)
-                local.devices_abnormal_powerdown += 1
+                if check:
+                    local.power_sweep_off(path, name)
+                    local.devices_abnormal_powerdown += 1
 
         else:
             logging.debug('Skipped Auditing %s', resource.FullName)
