@@ -22,7 +22,7 @@ class device_power_mgmt:
         self.power_on_wl = ["power_on", "Power On", "Power ON"]  # whitelist for power on commands
         self.power_off_wl = ["power_off", "Power Off", "Power OFF"]  # whitelist for power off commands
         self.shutdown_wl = ["Graceful Shutdown", "shutdown", "graceful_shutdown"]  # whitelist for shutdown cmds
-        self.hard_power = 'False'
+        self.hard_power = False  # use power off command if a graceful isn't found
         # 'shutdown' is the official command in the Shell's Guidelines
         pass
 
