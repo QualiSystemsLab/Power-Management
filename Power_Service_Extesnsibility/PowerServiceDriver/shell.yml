@@ -1,7 +1,7 @@
 shell:
-    name: {{cookiecutter.project_name}}
-    author: {{cookiecutter.full_name}}
-    email: {{cookiecutter.email}}
-    description: {{cookiecutter.project_short_description}}
-    version: {{cookiecutter.version}}
-    driver_name: {{cookiecutter.driver_name}}
+    name: PowerServiceDriver
+    author: ksaper
+    email: kimo.s@quali.com
+    description: Server Extensibility Driver for Power Service
+    version: 1.0.2
+    driver_name: Power Service Extensibility

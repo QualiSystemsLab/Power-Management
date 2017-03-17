@@ -111,4 +111,3 @@ class ConnectionEvents:
         removedConnection = ConnectionDetails(removed_connections)
 
         pass
-    

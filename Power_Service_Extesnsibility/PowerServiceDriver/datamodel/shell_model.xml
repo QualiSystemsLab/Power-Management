@@ -2,9 +2,8 @@
 
     <ShellAttributes>
     </ShellAttributes>
-
-    <ShellModel Family="{{ cookiecutter.family_name }}">
-        <ResourceModel Name="{{ cookiecutter.model_name }}" Description="" SupportsConcurrentCommands="true">
+    <ShellModel Family="Power">
+        <ResourceModel Name="Power" Description="" SupportsConcurrentCommands="true">
             <AttachedAttributes>
                 <AttachedAttribute Name="Auto Add To Reservation" IsOverridable="true" IsLocal="true">
                   <AllowedValues />
@@ -15,7 +14,7 @@
               </AttributeValues>
             <ParentModels />
             <Drivers>
-                <DriverName>{{ cookiecutter.driver_name }}</DriverName>
+                <DriverName>Power Service Extensibility</DriverName>
             </Drivers>
             <Scripts />
         </ResourceModel>

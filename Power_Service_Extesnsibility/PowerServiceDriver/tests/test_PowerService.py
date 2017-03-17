@@ -7,10 +7,13 @@ Tests for `{{ cookiecutter.driver_name }}`
 
 import unittest
 
-from driver import {{cookiecutter.driver_name}}
+from driver import PowerService
 
 
-class Test{{cookiecutter.driver_name}}(unittest.TestCase):
+class TestPowerSerivce(unittest.TestCase):
+
+    def __init__(self):
+        pass
 
     def setUp(self):
         pass

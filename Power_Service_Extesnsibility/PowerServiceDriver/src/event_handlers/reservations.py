@@ -6,7 +6,7 @@ from device_power_cmds import *
 class ReservationEvents:
     def __init__(self, api_session, reservation_id):
         self.logger = get_qs_logger("extensibility", "QS", "service")
-        self.device_pwr = device_power_mgmt(api_session, reservation_id)
+        self.device_pwr = DevicePowerMgmt(api_session, reservation_id)
         self.id = reservation_id
         self.api_session = api_session
         pass
@@ -49,7 +49,6 @@ class ReservationEvents:
         serviceDetails = ServiceDetails(service_details)
 
         pass
-
 
     def before_reservation_extended(self, context, action_details, resources_details, service_details, new_end_time):
         """
@@ -105,7 +104,6 @@ class ReservationEvents:
 
         if len(sev_list) > 0:
             pass
-
 
     def on_reservation_started(self, context, resources_details, service_details):
         """

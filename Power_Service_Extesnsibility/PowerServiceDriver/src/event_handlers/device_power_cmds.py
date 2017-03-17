@@ -14,15 +14,16 @@ class QualiError(Exception):
         return 'CloudShell error at ' + self.name + '. Error is:' + self.message
 
 
-class device_power_mgmt:
+class DevicePowerMgmt:
     def __init__(self, api_session, reservation_id):
         self.logger = get_qs_logger("extensibility", "QS", "service")
         self.api_session = api_session
         self.id = reservation_id
-        self.power_on_wl = ["power_on", "Power On", "Power ON"]  # whitelist for power on commands
-        self.power_off_wl = ["power_off", "Power Off", "Power OFF"]  # whitelist for power off commands
-        self.shutdown_wl = ["Graceful Shutdown", "shutdown", "graceful_shutdown"]  # whitelist for shutdown cmds
-        self.hard_power = False  # use power off command if a graceful isn't found
+        self.power_on_wl = ["power_on", "Power On", "Power ON", "PowerOn"]  # whitelist for power on commands
+        self.power_off_wl = ["power_off", "Power Off", "Power OFF", "PowerOff"]  # whitelist for power off commands
+        # whitelist for shutdown cmds
+        self.shutdown_wl = ["Graceful Shutdown", "shutdown", "graceful_shutdown", "Graceful_Shutdown"]
+        self.hard_power = True  # use power off command if a graceful isn't found
         # 'shutdown' is the official command in the Shell's Guidelines
         pass
 
@@ -121,29 +122,53 @@ class device_power_mgmt:
 
         return cmd_name
 
+    def _command_index(self, itm, lst):
+        """
+        returns the position of the command in a list of command-types
+        :param itm: str Name of the command to look for
+        :param lst: list of commands
+        :return: int sindex position
+        """
+        idx = 0
+        for each in lst:
+            if each.Name == itm:
+                break
+            else:
+                idx += 1
+        return idx
+
     def call_power_on(self, resource_list, source):
         """
         Walks the input list of devices, and calls the white-listed power on command if that device has one
-        :param resource_list: list of str
+        :param list[str] resource_list:
+        :param str source: Name of the service command being invoked
         :return: int
         """
+        dev_cmd_name = 'none'
         try:
             for dev_name in resource_list:
                 dev_cmd_list = self.api_session.GetResourceCommands(dev_name).Commands
+                reg_commands = len(dev_cmd_list)
+                dev_cmd_list += self.api_session.GetResourceConnectedCommands(dev_name).Commands
                 dev_cmd_name = self._has_power_on(dev_cmd_list)
                 if dev_cmd_name != '':
                     # self.api_session.EnqueueResourceCommand(self.id, dev_name, dev_cmd_name)
                     # -- Old command for driver build commands only - updated is ExecuteCommand for all
-                    self.api_session.EnqueueCommand(self.id, dev_name, 'Resource', dev_cmd_name)
-                    self.report_info('Command "' + dev_cmd_name + '" called on ' + dev_name)
+                    position = self._command_index(dev_cmd_name, dev_cmd_list)
+                    if 0 <= position < reg_commands:
+                        self.api_session.EnqueueCommand(self.id, dev_name, 'Resource', dev_cmd_name)
+                        self.report_info('Command "%s" called on %s' %(dev_cmd_name, dev_name))
+                    else:
+                        cmd_return = self.api_session.PowerOnResource(self.id, dev_name).Output
+                        self.report_info('API PowerOnResource was called on %s' %dev_name)
+                        self.report_info(cmd_return, write_to_output_window=True)
             return 1
         except QualiError as qe:
-            err = "Failed on calling " + dev_cmd_name + " from " + source + ". " + str(qe)
+            err = "Failed on calling %s from %s. %s" %(dev_cmd_name, source, qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
         except:
-            err = "Failed on calling " + dev_cmd_name + " from " + source + ". Unexpected error: " + "'" +\
-                  str(sys.exc_info()[0]) + "'"
+            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" %(dev_cmd_name, source, sys.exc_info()[0])
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
 
@@ -151,30 +176,36 @@ class device_power_mgmt:
         """
         Walks the input list of devices, and calls the white-listed power down option (shutdown first, hard
         power off second) if that device has one
-        :param resource_list: list of str
+        :param list[str] resource_list:
+        :param str source: Name of the service command being invoked
         :return: int
         """
+        dev_cmd_name = 'none'
         try:
             for dev_name in resource_list:
                 dev_cmd_list = self.api_session.GetResourceCommands(dev_name).Commands
+                reg_commands = len(dev_cmd_list)
+                dev_cmd_list += self.api_session.GetResourceConnectedCommands(dev_name).Commands
                 dev_cmd_name = self._has_shutdown(dev_cmd_list)
                 if dev_cmd_name == '' and self.hard_power:
                     dev_cmd_name = self._has_power_off(dev_cmd_list)
                 if dev_cmd_name != '':
-                    # self.api_session.EnqueueResourceCommand(self.id, dev_name, dev_cmd_name)
-                    # -- Old command for driver build commands only - updated is ExecuteCommand for all
-                    # self.api_session.EnqueueCommand(self.id, dev_name, 'Resource', dev_cmd_name)
                     # use Execute instead of Enqueue because it's called from a 'Sync' -
                     # sync can't complete till this is done.
-                    self.api_session.ExecuteCommand(self.id, dev_name, 'Resource', dev_cmd_name)
-                    self.report_info('Command "' + dev_cmd_name + '" called on ' + dev_name)
+                    position = self._command_index(dev_cmd_name, dev_cmd_list)
+                    if 0 <= position < reg_commands:
+                        self.api_session.ExecuteCommand(self.id, dev_name, 'Resource', dev_cmd_name)
+                        self.report_info('Command "%s" called on %s' %(dev_cmd_name, dev_name))
+                    else:
+                        cmd_return = self.api_session.PowerOffResource(self.id, dev_name).Output
+                        self.report_info('API PowerOffResource was called on %s' %dev_name)
+                        self.report_info(cmd_return, write_to_output_window=True)
             return 1
         except QualiError as qe:
-            err = "Failed on calling " + dev_cmd_name + " from " + source + ". " + str(qe)
+            err = "Failed on calling %s from %s. %s" % (dev_cmd_name, source, qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
         except:
-            err = "Failed on calling " + dev_cmd_name + " from " + source + ". Unexpected error: " + "'" + \
-                  str(sys.exc_info()[0]) + "'"
+            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" % (dev_cmd_name, source, sys.exc_info()[0])
             self.report_error(error_message=err, write_to_output_window=True)
             return -99

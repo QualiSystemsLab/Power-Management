@@ -20,7 +20,7 @@ class ResourcesEvents:
         self.logger = get_qs_logger("extensibility", "QS", "service")
         self.api_session = api_session
         self.id = reservation_id
-        self.device_pwr = device_power_mgmt(api_session, reservation_id)
+        self.device_pwr = DevicePowerMgmt(api_session, reservation_id)
 
     def after_resources_changed(self, context, action_details, resources_details, service_details, removed_resources,
                                 added_resources, modified_resources):
