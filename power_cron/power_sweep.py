@@ -144,6 +144,7 @@ class power_sweep(object):
                                                                       owner=self.configs["qs_admin_username"],
                                                                       durationInMinutes=self.configs["reservation_duration"]
                                                                       ).Reservation
+
         self.res_id = self.reservation.Id
         logging.info('Created Reservation, ID: %s', self.res_id)
         logging.debug('Reservation Name: %s', self.configs["reservation_name"])
@@ -302,6 +303,22 @@ class power_sweep(object):
 
         return cmd_name
 
+    def _command_index(self, itm, lst):
+        """
+        return the position of the command in t a list of command-types
+        :param itm: str Name of the command in to look for
+        :param lst: list of str (command names)
+        :return: int index position
+        """
+        idx = 0
+        for each in lst:
+            if each.Name == itm:
+                break
+            else:
+                idx += 1
+        return idx
+
+
     def power_sweep_off(self, resource_full_path, resource_name):
         """
         Looks for a shutdown command (and possibly a power off cmd) - if present then executes.
@@ -310,20 +327,30 @@ class power_sweep(object):
         :param str resource_name: resource name
         :return: none
         """
+        # build a list of commands on the resource, both regular and connected
         device_cmd_list = self.cs_session.GetResourceCommands(resource_full_path).Commands
-        device_cmd = self._has_shutdown(device_cmd_list)
+        reg_commands = len(device_cmd_list)  # tells me the break between reg & connected commands
+        device_cmd_list += self.cs_session.GetResourceConnectedCommands(resource_full_path).Commands
 
+        # look to see if it has a command we want
+        device_cmd = self._has_shutdown(device_cmd_list)
         if device_cmd == '' and self.configs["use_device_power_off"]:
             # if no shutdown cmd, see if it has a power off cmd
             device_cmd = self._has_power_off(device_cmd_list)
 
         if device_cmd != '':
+            position = self._command_index(device_cmd, device_cmd_list)
             try:
-                self.cs_session.ExecuteCommand(reservationId=self.res_id,
-                                               targetName=resource_name,
-                                               targetType='Resource',
-                                               commandName=device_cmd)
-                logging.info('%s command executed on %s', device_cmd, resource_name)
+                if 0 <= position < reg_commands:
+                    self.cs_session.ExecuteCommand(reservationId=self.res_id,
+                                                   targetName=resource_name,
+                                                   targetType='Resource',
+                                                   commandName=device_cmd)
+                    logging.info('%s command executed on %s', device_cmd, resource_name)
+                else:
+                    self.cs_session.PowerOffResource(self.res_id, resource_name)
+                    logging.info('API PowerOffResrouce was called on %s' %resource_name)
+
             except Exception as e:
                 logging.warning('Failed to execute %s on %s', device_cmd, resource_name)
                 logging.exception("message")
