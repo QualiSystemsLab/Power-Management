@@ -4,6 +4,7 @@ import base64
 import time
 import smtplib
 import cloudshell.api.cloudshell_api as cs_api
+from cloudshell.api.common_cloudshell_api import CloudShellAPIError
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import random
@@ -15,10 +16,14 @@ DAY_DICT = {"SUN":"SUNDAY", "MON":"MONDAY", "TUE":"TUESDAY", "WED":"WEDNESDAY", 
             "SAT":"SATURDAY"}
 MAX_RESULTS = 5000
 
+
 class power_sweep(object):
 
     def __init__(self):
-        self.json_file_path = 'configs.json'
+        self.reporting_list = []
+        self.resource_list = []
+        self.sql_connection = False
+        self.json_file_path = 'configs.json'  # windows may need full path if on a remote disk
         self.configs = json.loads(open(self.json_file_path).read())
 
         # set logging
@@ -41,13 +46,12 @@ class power_sweep(object):
         self.devices_abnormal_powerdown = 0
         self.devices_attribute_capture = 0
 
-
         self.report_dts = time.strftime('%Y-%m-%d %H:%M:00')  # report 'date time stamp' used for all entries
 
         self.csv_file_path = self.configs["csv_folder"] + "/" + self.configs["who_am_i"] + "_" + \
             time.strftime('%Y_%m_%d_%H_%M') + '.csv'
 
-        #build reporting matrix
+        # build reporting matrix
         self.report_m = {}
         for each in self.headers:
             self.report_m[each] = []
@@ -62,12 +66,13 @@ class power_sweep(object):
                                                           base64.b64decode(self.configs["qs_admin_password"]),
                                                           domain=self.configs["qs_cloudshell_domain"],port=8029)
             logging.info('Connected to CloudShell @ %s', self.configs["qs_server_hostname"])
-        except:
+        except CloudShellAPIError as e:
             msg = self._get_dts() + '\n Critical Error connecting to CloudShell' + \
                   '\n' + self.configs["who_am_i"] + ' attempting to start CloudShell API Session' + \
                   '\nServer: ' + self.configs["qs_server_hostname"] + \
                   '\nPlease review logs'
             logging.critical('Unable to connect to CloudShell on Server: %s', self.configs["qs_server_hostname"])
+            logging.critical(e.message)
             logging.debug('CloudShell Credentials: User= %s | Password= %s', self.configs["qs_admin_username"],
                           base64.b64decode(self.configs["qs_admin_password"]))
             logging.debug('CloudShell Domain: %s', self.configs["qs_cloudshell_domain"])
@@ -180,7 +185,6 @@ class power_sweep(object):
                                                         maxResults=MAX_RESULTS).Resources
 
     def build_resource_list(self):
-        self.resource_list = []
         for each in self.configs["target_family_list"]:
             self.resource_list += self._get_resources_in_range(each)
             logging.info("Looked up items available from family %s", each)
@@ -190,7 +194,6 @@ class power_sweep(object):
         return self.cs_session.FindResources(resourceFamily=family, maxResults=MAX_RESULTS).Resources
 
     def build_reporting_list(self):
-        self.reporting_list = []
         for fam in self.configs["target_family_list"]:
             self.reporting_list += self._get_resource_list(fam)
 
@@ -201,7 +204,6 @@ class power_sweep(object):
         :return:
         """
         return self.cs_session.GetResourceDetails(full_path)
-
 
     def add_items_to_reservation(self, resource_full_path):
         """
@@ -375,14 +377,13 @@ class power_sweep(object):
                          self.configs["sql_database"])
             logging.debug('MS SQL login %s:%s', self.configs["sql_server_user"],
                           base64.b64decode(self.configs["sql_server_password"]))
-        except Exception as e:
+        except pymssql.Error as e:
             logging.critical('Failed to connect to MS SQL')
-            logging.exception("message")
+            logging.critical(e.message)
             logging.critical('MS SQL Connection Opened to: %s - Table', self.configs["sql_server_address"],
                              self.configs["sql_database"])
             logging.critical('MS SQL login %s:%s', self.configs["sql_server_user"],
                              base64.b64decode(self.configs["sql_server_password"]))
-            self.sql_connection = False
 
     def close_ms_sql_connection(self):
         """
@@ -395,18 +396,21 @@ class power_sweep(object):
         """
         Adds to the summary log, designed to be a concise summary of each run's activities
         """
-        f = open(self.configs["summary_filepath"], 'a')
-        f.write(self.configs["who_am_i"] + ' Completed' + '\n')
-        f.write(' Start time: ' + self.start_time + '\n')
-        f.write('   End time: ' + self.end_time + '\n')
-        f.write('Reservation: ' + self.res_id + '\n')
-        f.write(str(self.devices_max_powersweep).rjust(5) + ' Devices inspected for Power Sweep\n')
-        f.write(str(self.devices_normal_powerdown).rjust(5) + ' Devices ON+GOOD hit\n')
-        f.write(str(self.devices_off_powerdown).rjust(5) + ' Devices OFF hit\n')
-        f.write(str(self.devices_abnormal_powerdown).rjust(5) + ' Devices ON+BAD hit\n')
-        f.write('===========================================================\n')
-        f.close()
-
+        try:
+            f = open(self.configs["summary_filepath"], 'a')
+            f.write(self.configs["who_am_i"] + ' Completed' + '\n')
+            f.write(' Start time: ' + self.start_time + '\n')
+            f.write('   End time: ' + self.end_time + '\n')
+            f.write('Reservation: ' + self.res_id + '\n')
+            f.write(str(self.devices_max_powersweep).rjust(5) + ' Devices inspected for Power Sweep\n')
+            f.write(str(self.devices_normal_powerdown).rjust(5) + ' Devices ON+GOOD hit\n')
+            f.write(str(self.devices_off_powerdown).rjust(5) + ' Devices OFF hit\n')
+            f.write(str(self.devices_abnormal_powerdown).rjust(5) + ' Devices ON+BAD hit\n')
+            f.write('===========================================================\n')
+            f.close()
+        except IOError as e:
+            logging.error('Error writing to summary log: %s' % self.configs["summary_filepath"])
+            logging.error(e.message)
 
 ################################
 def main():
@@ -438,7 +442,7 @@ def main():
             # if it's already off, try to turn some off anyway (5%)
             if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
                 local.exclude_resource(path)
-                # local.hard_power_off(path)
+                local.hard_power_off(path)
                 time.sleep(2)
                 local.include_resource(path)
                 local.devices_off_powerdown += 1
@@ -527,7 +531,7 @@ def main():
 
     # open csv file
     if local.configs["capture_csv"]:
-        with open(local.csv_file_path, 'a') as f:
+        with open(local.csv_file_path, 'ab') as f:
             csvout = csv.writer(f)
             csvout.writerow(local.headers)
             f.close()
@@ -569,17 +573,16 @@ def main():
             try:
                 local.sql_cursor.execute(sql_line)
                 local.sqlconn.commit()
-
                 logging.debug('MS SQL Cursor send: %s', sql_line)
-            except Exception as e:
+            except pymssql.Error as e:
                 logging.error('MS SQL Cursor Send Error: %s', sql_line)
-                logging.exception("message")
+                logging.error(e.message)
 
         # print sql_line  # debug ling
 
         # then send to csv to save
         if local.configs["capture_csv"]:
-            with open(local.csv_file_path, 'a') as f:
+            with open(local.csv_file_path, 'ab') as f:
                 csvout = csv.writer(f)
                 csvout.writerow(line)
                 f.close()
