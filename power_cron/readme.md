@@ -59,11 +59,11 @@ In addition, the same information can be collected in a csv file ("capture_csv" 
 +  audit_gate_attribute_2: DEC% this is the % of devices to power down if BAD & ON
 +  audit_gate_default: DEC% this is the % of devices to power down for any other reason
 +  report_headers: List of headers from the SQL table.  Most headers correspond to device attributes.
-..* Date is the DTS for the report run
-..* DeviceName is the name of the device in CloudShell
-..* Reserved is the current reservation status of the device (Reserved items should be on)
-..* The rest correspond to specific attributes
-..* List order needs to match SQL Table Order
+    - Date is the DTS for the report run
+    - DeviceName is the name of the device in CloudShell
+    - Reserved is the current reservation status of the device (Reserved items should be on)
+    - The rest correspond to specific attributes
+    - List order needs to match SQL Table Order
 + logging_file_path: full file path to the running log
 + logging_level: log capture level (DEBUG, INFO, WARNING/WARN, ERROR, CRITICAL/CRIT)
 + reservation_duration: INT (Minutes) length of the master reservation
