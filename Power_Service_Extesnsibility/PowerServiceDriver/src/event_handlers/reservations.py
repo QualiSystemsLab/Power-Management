@@ -1,15 +1,58 @@
 from input_converters import *
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from device_power_cmds import *
+import time
+
+CHECK_FOR_RESERVATIONS = True
+RESERVATION_WINDOW = 14400  # 4hrs x 3600seconds
+CHECK_FOR_POWER_MGMT_BOOLEAN = True
 
 
 class ReservationEvents:
     def __init__(self, api_session, reservation_id):
+        """
+        :param CloudShellAPISession api_session: Active CloudShell API Connection
+        :param string reservation_id: Current Context Reservation API
+        """
         self.logger = get_qs_logger("extensibility", "QS", "service")
         self.device_pwr = DevicePowerMgmt(api_session, reservation_id)
         self.id = reservation_id
         self.api_session = api_session
-        pass
+
+    def _power_mgmt_positive(self, device_name):
+        if CHECK_FOR_POWER_MGMT_BOOLEAN:
+            try:
+                # check the Shell Standard Attribute 'Power Management' which is a Boolean
+                return self.api_session.GetAttributeValue(resourceFullPath=device_name,
+                                                          attributeName='Power Management').Value
+            except CloudShellAPIError:
+                # if the target doesn't have the attribute - still control Power? (True or False below)
+                return True
+        else:
+            return True
+
+    def _no_upcoming_reservations(self, device_name):
+        if CHECK_FOR_RESERVATIONS:
+            offset = RESERVATION_WINDOW  # modify if there is a look-forward attribute
+            t1 = time.strftime('%d/%m/%Y %H:%M', time.localtime(time.mktime(time.localtime()) + time.timezone))
+            t2 = time.strftime('%d/%m/%Y %H:%M', time.localtime(time.mktime(time.localtime()) + time.timezone + offset))
+            r_list= self.api_session.GetResourceAvailabilityInTimeRange(resourcesNames=[device_name],
+                                                                        startTime=t1,
+                                                                        endTime=t2,
+                                                                        showAllDomains=True).Resources
+            len_check = 0
+            for resource in r_list:
+                for reservation in resource.Reservations:
+                    if self.id != reservation.ReservationId:
+                        len_check += 1
+
+            if len_check == 0:
+                return True
+            else:
+                return False
+
+        else:
+            return True
 
     def after_reservation_created(self, context, action_details, resources_details, service_details):
         """
@@ -91,7 +134,8 @@ class ReservationEvents:
         res_list = []
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                res_list.append(resource.name)
+                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                    res_list.append(resource.name)
 
         sev_list = []
         # for services in servicesDetails.services:
@@ -119,12 +163,13 @@ class ReservationEvents:
         resourcesDetails = ResourcesDetails(resources_details)
         # servicesDetails = ServicesDetails(service_details)
 
-        res_list = []
+        res_list = []  # resource list
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                res_list.append(resource.name)
+                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                    res_list.append(resource.name)
 
-        sev_list = []
+        sev_list = []  # services list
         # for service in servicesDetails.services:
         #     sev_list.append(service.alias)
 
@@ -153,7 +198,8 @@ class ReservationEvents:
         res_list = []
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                res_list.append(resource.name)
+                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                    res_list.append(resource.name)
 
         sev_list = []
         # for services in servicesDetails.services:

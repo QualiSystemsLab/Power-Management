@@ -37,7 +37,7 @@ In addition, the same information can be collected in a csv file ("capture_csv" 
 +  who_am_i: The name of this process for logs and other recording
 +  qs_server_hostname: Hostname or IP of the Quali Application Server to connect to (your installation)
 +  qs_admin_username: An admin level username to record the actions under _service account recommended_
-+  qs_admin_password: BASE64 user's corrisponding password
++  qs_admin_password: BASE64 user's corresponding password
 +  qs_cloudshell_domain: Which domain to operate in _Global is default overarching_
 +  email_on_complete: sBOOL Generate an email on completion of run for a non error run __Not Implemented Yet__
 +  email_on_error_both: BOOL Generate an email for error and completion (should always email error) __Not Implemented Yet__

@@ -1,6 +1,6 @@
-import sys
-from cloudshell.core.logger.qs_logger import get_qs_logger
-
+yfrom cloudshell.core.logger.qs_logger import get_qs_logger
+from cloudshell.api.common_cloudshell_api import CloudShellAPIError
+from time import sleep
 SEVERITY_INFO = 20
 SEVERITY_ERROR = 40
 
@@ -127,7 +127,7 @@ class DevicePowerMgmt:
         returns the position of the command in a list of command-types
         :param itm: str Name of the command to look for
         :param lst: list of commands
-        :return: int sindex position
+        :return: int index position
         """
         idx = 0
         for each in lst:
@@ -136,6 +136,34 @@ class DevicePowerMgmt:
             else:
                 idx += 1
         return idx
+
+    def _connected_power_command(self, device_name, command_name):
+        try:
+            self.api_session.ExcludeResource(device_name)
+            self.api_session.ExecuteResourceConnectedCommand(reservationId=id, resourceFullPath=device_name,
+                                                             commandName=command_name, commandTag='power')
+            sleep(2)
+            self.api_session.IncludeResource(device_name)
+            return True
+        except CloudShellAPIError as ce:
+            self.report_error(ce.message, write_to_output_window=True)
+            return False
+
+    def _execute_resource_command(self, device_name, command_name):
+        try:
+            self.api_session.ExecuteCommand(self.id, device_name, 'Resource', command_name)
+            return True
+        except CloudShellAPIError as ce:
+            self.report_error(ce.message, write_to_output_window=True)
+            return False, ce.message
+
+    def _enqueue_resource_command(self, device_name, command_name):
+        try:
+            self.api_session.EnqueueCommand(self.id, device_name, 'Resource', command_name)
+            return True
+        except CloudShellAPIError as ce:
+            self.report_error(ce.message, write_to_output_window=True)
+            return False, ce.message
 
     def call_power_on(self, resource_list, source):
         """
@@ -156,19 +184,23 @@ class DevicePowerMgmt:
                     # -- Old command for driver build commands only - updated is ExecuteCommand for all
                     position = self._command_index(dev_cmd_name, dev_cmd_list)
                     if 0 <= position < reg_commands:
-                        self.api_session.EnqueueCommand(self.id, dev_name, 'Resource', dev_cmd_name)
-                        self.report_info('Command "%s" called on %s' %(dev_cmd_name, dev_name))
+                        check, m = self._execute_resource_command(dev_name, dev_cmd_name)
+                        if not check and "command isn't available" in m:
+                            self.report_info('Unable to execute %s - command not available' % dev_cmd_name,
+                                             write_to_output_window=True)
+                        elif check:
+                            self.report_info('Command "%s" called on %s' % (dev_cmd_name, dev_name))
                     else:
-                        cmd_return = self.api_session.PowerOnResource(self.id, dev_name).Output
-                        self.report_info('API PowerOnResource was called on %s' %dev_name)
-                        self.report_info(cmd_return, write_to_output_window=True)
+                        check = self._connected_power_command(dev_name, dev_cmd_name)
+                        if check:
+                            self.report_info('Connected Command: %s was called on %s' % (dev_cmd_name, dev_name))
             return 1
         except QualiError as qe:
             err = "Failed on calling %s from %s. %s" %(dev_cmd_name, source, qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
-        except:
-            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" %(dev_cmd_name, source, sys.exc_info()[0])
+        except StandardError as err:
+            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" %(dev_cmd_name, source, err.message)
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
 
@@ -194,18 +226,29 @@ class DevicePowerMgmt:
                     # sync can't complete till this is done.
                     position = self._command_index(dev_cmd_name, dev_cmd_list)
                     if 0 <= position < reg_commands:
-                        self.api_session.ExecuteCommand(self.id, dev_name, 'Resource', dev_cmd_name)
-                        self.report_info('Command "%s" called on %s' %(dev_cmd_name, dev_name))
+                        check, m = self._enqueue_resource_command(dev_cmd_name, dev_cmd_name)
+                        if not check and "command isn't available" in m:
+                            if self.hard_power:
+                                dev_cmd_name = self._has_power_off(dev_cmd_list)
+                                if dev_cmd_name != '':
+                                    check2 = self._connected_power_command(dev_name, dev_cmd_name)
+                                    if check2:
+                                        self.report_info('Connected Command: %s called on %s' % (dev_cmd_name, dev_name))
+                            else:
+                                msg = 'Standard Resource Command %s unavailable, Connected Command option not enabled'
+                                self.report_info(msg)
+                        elif check:
+                            self.report_info('Command "%s" called on %s' %(dev_cmd_name, dev_name))
                     else:
-                        cmd_return = self.api_session.PowerOffResource(self.id, dev_name).Output
-                        self.report_info('API PowerOffResource was called on %s' %dev_name)
-                        self.report_info(cmd_return, write_to_output_window=True)
+                        check = self._connected_power_command(dev_name, dev_cmd_name)
+                        if check:
+                            self.report_info('API PowerOffResource was called on %s' % dev_name)
             return 1
         except QualiError as qe:
             err = "Failed on calling %s from %s. %s" % (dev_cmd_name, source, qe)
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
-        except:
-            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" % (dev_cmd_name, source, sys.exc_info()[0])
+        except StandardError as err:
+            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" % (dev_cmd_name, source, err.message)
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
