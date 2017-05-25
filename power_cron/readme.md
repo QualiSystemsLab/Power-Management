@@ -74,5 +74,5 @@ In addition, the same information can be collected in a csv file ("capture_csv" 
 + sql_database: name of the SQL DB to attach to
 + sql_table: name of the SQL Table in the "sql_database" to use
 + capture_csv: BOOL If a CSV of the audit should be saved
-    - csv_folder: which folder to capture the csv files in
-    - summary_filepath: full filepath for the summary log
++ csv_folder: which folder to capture the csv files in
++ summary_filepath: full filepath for the summary log
