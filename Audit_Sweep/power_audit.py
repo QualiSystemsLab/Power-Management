@@ -583,7 +583,7 @@ class PowerAudit(object):
 
             self.error_m[rack_loc].append(line)
 
-        logging.info('Attribute Scrape results: %s' % current_values)
+        logging.debug('Attribute Scrape results: %s' % current_values)
         return current_values
 
     def _custom_att_error_flag(self, attribute_name):
