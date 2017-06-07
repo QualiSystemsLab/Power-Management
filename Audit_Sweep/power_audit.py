@@ -37,6 +37,8 @@ class PowerAudit(object):
         self.audit_count = 0
         self.sql_connection = None
         self.summary_txt = ''
+        self.cs_session = None
+        self.reset_time = 0
         # open json config file
         self.json_file_path = 'configs.json'  # 'C:/Users/ksaper/Documents/Audit_Sweep/configs.json' in the IDE is fine
         self.configs = json.loads(open(self.json_file_path).read())
@@ -91,8 +93,12 @@ class PowerAudit(object):
         # build error matrix, for capturing failing devices
         # dict of list of list
         self.error_m = {}
+        self._start_cloudshell_session()
+    # end __init__
 
+    def _start_cloudshell_session(self):
         # start CloudShell API Session
+        self.cs_session = None
         try:
             self.cs_session = cs_api.CloudShellAPISession(self.configs["qs_server_hostname"],
                                                           self.configs["qs_admin_username"],
@@ -111,7 +117,6 @@ class PowerAudit(object):
                           b64decode(self.configs["qs_admin_password"]))
             logging.debug('CloudShell Domain: %s', self.configs["qs_cloudshell_domain"])
             self.send_email('Error connecting to CloudShell', msg)
-    # end __init__
 
     def _get_dts(self):
         return time.strftime('%Y-%m-%d %H:%M:%S')
@@ -190,7 +195,7 @@ class PowerAudit(object):
 
     def resource_exists(self, device_name):
         try:
-            self.cs_session.GetResourceDetails(resourceFullPath=device_name)
+            self.cs_session.GetResourceDetails(resourceFullPath=device_name).Address
             return True
         except CloudShellAPIError:
             return False
@@ -723,28 +728,39 @@ class PowerAudit(object):
             # take outta the reservation
             self.remove_from_reservation(device_name=dev_name)  # release it back to the pool
 
+    def _set_reset_time(self):
+        self.reset_time = time.mktime(time.localtime()) + self.configs['session_reset_time']
+
     def full_audit(self):
         self.who_am_i = 'Full Audit Sweep'
         logging.info('%s Started' % self.who_am_i)
         self.create_reservation()
         # build resource list
         self.create_resource_list()
+        self._set_reset_time()
         maxx = len(self.resource_list)
         loop_count = 0
 
         idx = 1
         for resource in self.resource_list:  # Main Loop
-            loop_count += 1
-            logging.info('Resource %s (%s of %s)' % (resource.Name, loop_count, maxx))
-            if self.audit_all or idx == self.audit_check:
-                # if it's a all audit day or the index matches today's number - audit the device
-                self._audit_item(dev_name=resource.Name)
-            if idx == self.configs["audit_rotation"]:
-                idx = 1
-            else:
-                idx += 1
-            # do attribute scrape for all devices (outside the reservation & inspection process)
-            self.attribute_scrape(device_name=resource.Name)
+            if time.mktime(time.localtime()) > self.reset_time:
+                self._start_cloudshell_session()
+                self._set_reset_time()
+            try:
+                loop_count += 1
+                logging.info('Resource %s (%s of %s)' % (resource.Name, loop_count, maxx))
+                if self.audit_all or idx == self.audit_check:
+                    # if it's a all audit day or the index matches today's number - audit the device
+                        self._audit_item(dev_name=resource.Name)
+                if idx == self.configs["audit_rotation"]:
+                    idx = 1
+                else:
+                    idx += 1
+                # do attribute scrape for all devices (outside the reservation & inspection process)
+                self.attribute_scrape(device_name=resource.Name)
+            except StandardError as err:
+                logging.warning(err.message)
+                self._start_cloudshell_session()  # in case of timeout
         self.end_reservation()
 
         # sql dump of report_m

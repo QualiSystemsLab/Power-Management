@@ -4,6 +4,7 @@
     "qs_admin_username": "admin",
     "qs_admin_password": "YWRtaW4=",
     "qs_cloudshell_domain": "Global",
+    "session_reset_time": 13800,
     "logging_file_path": "./logs/audit_sweep.log",
     "logging_level": "INFO",
     "report_headers": [
