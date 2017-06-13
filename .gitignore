@@ -58,3 +58,18 @@
  +# PyBuilder
  +target/
  +cloudshell_config.yml
+*.iml
+
+power_cron/.idea/workspace.xml
+
+Power_Service_Extesnsibility/PowerServiceDriver/.idea/misc.xml
+
+power_cron/.idea/workspace.xml
+
+Power_Service_Extesnsibility/PowerServiceDriver/.idea/PowerServiceDriver.iml
+
+Power_Service_Extesnsibility/PowerServiceDriver/.idea/workspace.xml
+
+Power_Service_Extesnsibility/PowerServiceDriver/src/debug_info.txt
+
+Power_Service_Extesnsibility/PowerServiceDriver/src/debug_info.txt

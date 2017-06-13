@@ -1,4 +1,4 @@
-yfrom cloudshell.core.logger.qs_logger import get_qs_logger
+from cloudshell.core.logger.qs_logger import get_qs_logger
 from cloudshell.api.common_cloudshell_api import CloudShellAPIError
 from time import sleep
 SEVERITY_INFO = 20
@@ -122,6 +122,13 @@ class DevicePowerMgmt:
 
         return cmd_name
 
+    def _command_list_builder(self, command_list):
+        name_list = []
+        for each in command_list:
+            name_list.append(each.Name)
+
+        return name_list
+
     def _command_index(self, itm, lst):
         """
         returns the position of the command in a list of command-types
@@ -129,13 +136,8 @@ class DevicePowerMgmt:
         :param lst: list of commands
         :return: int index position
         """
-        idx = 0
-        for each in lst:
-            if each.Name == itm:
-                break
-            else:
-                idx += 1
-        return idx
+        local_list = self._command_list_builder(lst)
+        return local_list.index(itm)
 
     def _connected_power_command(self, device_name, command_name):
         try:
@@ -152,7 +154,7 @@ class DevicePowerMgmt:
     def _execute_resource_command(self, device_name, command_name):
         try:
             self.api_session.ExecuteCommand(self.id, device_name, 'Resource', command_name)
-            return True
+            return True, None
         except CloudShellAPIError as ce:
             self.report_error(ce.message, write_to_output_window=True)
             return False, ce.message
@@ -160,7 +162,7 @@ class DevicePowerMgmt:
     def _enqueue_resource_command(self, device_name, command_name):
         try:
             self.api_session.EnqueueCommand(self.id, device_name, 'Resource', command_name)
-            return True
+            return True, None
         except CloudShellAPIError as ce:
             self.report_error(ce.message, write_to_output_window=True)
             return False, ce.message
@@ -184,7 +186,7 @@ class DevicePowerMgmt:
                     # -- Old command for driver build commands only - updated is ExecuteCommand for all
                     position = self._command_index(dev_cmd_name, dev_cmd_list)
                     if 0 <= position < reg_commands:
-                        check, m = self._execute_resource_command(dev_name, dev_cmd_name)
+                        check, m = self._enqueue_resource_command(dev_name, dev_cmd_name)
                         if not check and "command isn't available" in m:
                             self.report_info('Unable to execute %s - command not available' % dev_cmd_name,
                                              write_to_output_window=True)
@@ -200,7 +202,7 @@ class DevicePowerMgmt:
             self.report_error(error_message=err, write_to_output_window=True)
             return -1
         except StandardError as err:
-            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" %(dev_cmd_name, source, err.message)
+            err = "Failed on calling %s from %s.  Unexpected Error: '%s'" % (dev_cmd_name, source, err.message)
             self.report_error(error_message=err, write_to_output_window=True)
             return -99
 
@@ -226,7 +228,7 @@ class DevicePowerMgmt:
                     # sync can't complete till this is done.
                     position = self._command_index(dev_cmd_name, dev_cmd_list)
                     if 0 <= position < reg_commands:
-                        check, m = self._enqueue_resource_command(dev_cmd_name, dev_cmd_name)
+                        check, m = self._execute_resource_command(dev_name, dev_cmd_name)
                         if not check and "command isn't available" in m:
                             if self.hard_power:
                                 dev_cmd_name = self._has_power_off(dev_cmd_list)

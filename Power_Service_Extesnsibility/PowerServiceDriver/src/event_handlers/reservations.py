@@ -1,11 +1,22 @@
 from input_converters import *
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from device_power_cmds import *
-import time
+from cloudshell.core.logger.qs_logger import get_qs_logger
+from near_term_reservation import NearTermReservations
 
-CHECK_FOR_RESERVATIONS = True
-RESERVATION_WINDOW = 14400  # 4hrs x 3600seconds
-CHECK_FOR_POWER_MGMT_BOOLEAN = True
+SEVERITY_INFO = 20
+SEVERITY_ERROR = 40
+
+CHECK_FOR_POWER_MGMT_BOOLEAN = True  # Look for the Std Attribute "Power Management"
+
+
+class QualiError(Exception):
+    def __init__(self, name, message):
+        self.message = message
+        self.name = name
+
+    def __str__(self):
+        return 'CloudShell error at ' + self.name + '. Error is:' + self.message
 
 
 class ReservationEvents:
@@ -18,6 +29,8 @@ class ReservationEvents:
         self.device_pwr = DevicePowerMgmt(api_session, reservation_id)
         self.id = reservation_id
         self.api_session = api_session
+        self.reservation_checker = NearTermReservations(self.api_session, self.id)
+        self.who_am_i = 'reservation.py'
 
     def _power_mgmt_positive(self, device_name):
         if CHECK_FOR_POWER_MGMT_BOOLEAN:
@@ -28,29 +41,6 @@ class ReservationEvents:
             except CloudShellAPIError:
                 # if the target doesn't have the attribute - still control Power? (True or False below)
                 return True
-        else:
-            return True
-
-    def _no_upcoming_reservations(self, device_name):
-        if CHECK_FOR_RESERVATIONS:
-            offset = RESERVATION_WINDOW  # modify if there is a look-forward attribute
-            t1 = time.strftime('%d/%m/%Y %H:%M', time.localtime(time.mktime(time.localtime()) + time.timezone))
-            t2 = time.strftime('%d/%m/%Y %H:%M', time.localtime(time.mktime(time.localtime()) + time.timezone + offset))
-            r_list= self.api_session.GetResourceAvailabilityInTimeRange(resourcesNames=[device_name],
-                                                                        startTime=t1,
-                                                                        endTime=t2,
-                                                                        showAllDomains=True).Resources
-            len_check = 0
-            for resource in r_list:
-                for reservation in resource.Reservations:
-                    if self.id != reservation.ReservationId:
-                        len_check += 1
-
-            if len_check == 0:
-                return True
-            else:
-                return False
-
         else:
             return True
 
@@ -134,7 +124,8 @@ class ReservationEvents:
         res_list = []
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                if self.reservation_checker.no_upcoming_reservations(resource.name) and\
+                        self._power_mgmt_positive(resource.name):
                     res_list.append(resource.name)
 
         sev_list = []
@@ -166,7 +157,7 @@ class ReservationEvents:
         res_list = []  # resource list
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                if self._power_mgmt_positive(resource.name):
                     res_list.append(resource.name)
 
         sev_list = []  # services list
@@ -198,7 +189,8 @@ class ReservationEvents:
         res_list = []
         for resource in resourcesDetails.resources:
             if '/' not in resource.fullname:
-                if self._no_upcoming_reservations(resource.name) and self._power_mgmt_positive(resource.name):
+                if self.reservation_checker.no_upcoming_reservations(resource.name) and\
+                        self._power_mgmt_positive(resource.name):
                     res_list.append(resource.name)
 
         sev_list = []
