@@ -248,7 +248,7 @@ class DevicePowerMgmt:
             return 1
         except QualiError as qe:
             err = "Failed on calling %s from %s. %s" % (dev_cmd_name, source, qe)
-            self.report_error(error_message=err, write_to_output_window=True)
+            self.report_error(error_message=qe.message, write_to_output_window=True)
             return -1
         except StandardError as err:
             err = "Failed on calling %s from %s.  Unexpected Error: '%s'" % (dev_cmd_name, source, err.message)
