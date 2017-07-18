@@ -1,8 +1,8 @@
 {
     "who_am_i":"Daily_Audit_py",
-    "qs_server_hostname": "qualias-eqx-01.force10networks.com",
-    "qs_admin_username": "admin",
-    "qs_admin_password": "YWRtaW4=",
+    "qs_server_hostname": "localhost",
+    "qs_admin_username": "adminuser",
+    "qs_admin_password": "cGFzc3dvcmQ=",
     "qs_cloudshell_domain": "Global",
     "session_reset_time": 13800,
     "logging_file_path": "./logs/audit_sweep.log",
@@ -18,7 +18,7 @@
         "Mgmt_IP_Pingable",
         "Reserved"
     ],
-    "target_family_list": ["Dell Switch Chassis"],
+    "target_family_list": ["ACME Switch Chassis"],
     "boot_time_wait": 8,
     "reservation_name": "Daily Audit",
     "reservation_duration": 300,
@@ -36,7 +36,7 @@
     "console_port_connect_att_name": "Console_Port_Status",
     "prompt_att_name": "Console_Prompt",
     "prompt_chars": ["#", ">"],
-    "sql_server_address":"qualidb-eqx-01\\qualidbeqx02",
+    "sql_server_address":"hostname\\dbname",
     "sql_server_user":"sa",
     "sql_server_password":"bmV3UEFTUzIwMTQ=",
     "sql_database":"DELL_CUSTOM_REPORTING",
@@ -44,10 +44,10 @@
     "capture_csv": true,
     "csv_folder":"./logs/csv",
     "summary_filepath":"./logs/summary.log",
-    "smtp_server": "smtprelay-eqx-01.force10networks.com",
+    "smtp_server": "smtprelay.acmeco.com",
     "smtp_port": 25,
-    "smtp_user": "donotreply-qsadmin@force10networks.com",
+    "smtp_user": "donotreply@acmeco.com",
     "smtp_req_auth": false,
     "smtp_password": "",
-    "smtp_mail_list": "joseph_saunders@dell.com;kimo.s@quali.com"
+    "smtp_mail_list": "user1@amceco.com;user2@acmeco.com"
 }
