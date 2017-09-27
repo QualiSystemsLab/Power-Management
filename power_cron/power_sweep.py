@@ -10,20 +10,23 @@ from email.MIMEText import MIMEText
 import random
 import csv
 import pymssql
+from os import getcwd
 
-LOG_DICT = {"DEBUG":10, "INFO":20, "WARNING":30, "WARN":30, "ERROR":40, "CRITICAL":50, "CRIT":50}
-DAY_DICT = {"SUN":"SUNDAY", "MON":"MONDAY", "TUE":"TUESDAY", "WED":"WEDNESDAY", "THR":"THURSDAY", "FRI":"FRIDAY",
-            "SAT":"SATURDAY"}
+LOG_DICT = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "WARN": 30, "ERROR": 40, "CRITICAL": 50, "CRIT": 50}
+DAY_DICT = {"SUN": "SUNDAY", "MON": "MONDAY", "TUE": "TUESDAY", "WED": "WEDNESDAY", "THR": "THURSDAY", "FRI": "FRIDAY",
+            "SAT": "SATURDAY"}
 MAX_RESULTS = 5000
 
 
 class power_sweep(object):
 
     def __init__(self):
+        self.res_id = None
         self.reporting_list = []
         self.resource_list = []
         self.sql_connection = False
-        self.json_file_path = 'configs.json'  # windows may need full path if on a remote disk
+        # windows may need full path if on a remote disk
+        self.json_file_path = '{}/configs.json'.format(getcwd()).replace('\\', '/')
         self.configs = json.loads(open(self.json_file_path).read())
 
         # set logging
@@ -145,19 +148,26 @@ class power_sweep(object):
         This is the master reservation (self.res_id)
         :return: None
         """
-        self.reservation = self.cs_session.CreateImmediateReservation(reservationName=self.configs["reservation_name"],
-                                                                      owner=self.configs["qs_admin_username"],
-                                                                      durationInMinutes=self.configs["reservation_duration"]
-                                                                      ).Reservation
+        try:
+            self.reservation = self.cs_session.CreateImmediateReservation(reservationName=self.configs["reservation_name"],
+                                                                          owner=self.configs["qs_admin_username"],
+                                                                          durationInMinutes=self.configs["reservation_duration"]
+                                                                          ).Reservation
 
-        self.res_id = self.reservation.Id
-        logging.info('Created Reservation, ID: %s', self.res_id)
-        logging.debug('Reservation Name: %s', self.configs["reservation_name"])
-        logging.debug('Owner: %s', self.configs["qs_admin_username"])
-        logging.debug('Start Time: %s', self.reservation.StartTime)
-        logging.debug('End Time: %s', self.reservation.EndTime)
-        # sleep for setup
-        time.sleep(15)
+            self.res_id = self.reservation.Id
+            logging.info('Created Reservation, ID: %s', self.res_id)
+            logging.debug('Reservation Name: %s', self.configs["reservation_name"])
+            logging.debug('Owner: %s', self.configs["qs_admin_username"])
+            logging.debug('Start Time: %s', self.reservation.StartTime)
+            logging.debug('End Time: %s', self.reservation.EndTime)
+            # sleep for setup
+            time.sleep(15)
+        except CloudShellAPIError as e:
+            logging.debug('Unable to create a reservation')
+            logging.critical('Error on CreateImmediateReservation: {}'.format(e.message))
+            logging.debug('Reservation Name: {}  Owner: {}  Duration: {}'.format(self.configs["reservation_name"],
+                                                                                 self.configs["qs_admin_username"],
+                                                                                 self.configs["reservation_duration"]))
 
     def end_reservation(self):
         """
@@ -416,190 +426,192 @@ class power_sweep(object):
 def main():
     local = power_sweep()
     local.create_reservation()
-    local.clean_reservation()
-    local.build_resource_list()
+    # make sure a reservation is made
+    if not local.res_id:
+        logging.error('No reservation made, unable to proceed')
+    else:
+        local.clean_reservation()
+        local.build_resource_list()
 
-    logging.info('Starting Main Power Down Loop')
+        logging.info('Starting Main Power Down Loop')
 
-    # master loop to turn items off
-    for resource in local.resource_list:
+        # master loop to turn items off
+        for resource in local.resource_list:
 
-        if len(resource.Reservations) == 0:
-            local.devices_max_powersweep += 1
-            rand = random.random()
-            path = resource.FullPath
-            name = resource.FullName
-            power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
-            control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
-
-
-            # debug logging
-            logging.debug('Inspecting %s', resource.FullName)
-            logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
-            logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
-            logging.debug('Random Number = %s', str(rand))
-
-            # if it's already off, try to turn some off anyway (5%)
-            if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
-                local.exclude_resource(path)
-                local.hard_power_off(path)
-                time.sleep(2)
-                local.include_resource(path)
-                local.devices_off_powerdown += 1
-                logging.info('Power Off via API called on: %s', name)
+            if len(resource.Reservations) == 0:
+                local.devices_max_powersweep += 1
+                rand = random.random()
+                path = resource.FullPath
+                name = resource.FullName
+                power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
+                control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
 
 
-            # I'm on and in a normal status - turn me off
-            elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
-                #add to reservation
-                check = local.add_items_to_reservation(path)
+                # debug logging
+                logging.debug('Inspecting %s', resource.FullName)
+                logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
+                logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
+                logging.debug('Random Number = %s', str(rand))
 
-                # call power off method
-                if check:
-                    local.power_sweep_off(path, name)
-                    local.devices_normal_powerdown += 1
+                # if it's already off, try to turn some off anyway (5%)
+                if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
+                    local.exclude_resource(path)
+                    local.hard_power_off(path)
+                    time.sleep(2)
+                    local.include_resource(path)
+                    local.devices_off_powerdown += 1
+                    logging.info('Power Off via API called on: %s', name)
 
-            # I'm on and in a known bad status - random set try to turn off anyway
-            elif power_status == 'ON' \
-                and control_status == local.configs["audit_attribute_2_bad"] \
-                and rand <= local.configs["audit_gate_attribute_2"]:
-                            #add to reservation
-                check = local.add_items_to_reservation(path)
+                # I'm on and in a normal status - turn me off
+                elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
+                    # add to reservation
+                    check = local.add_items_to_reservation(path)
 
-                # call power off method
-                if check:
-                    local.power_sweep_off(path, name)
-                    local.devices_abnormal_powerdown += 1
+                    # call power off method
+                    if check:
+                        local.power_sweep_off(path, name)
+                        local.devices_normal_powerdown += 1
 
-            # I'm on and in a all other bad status - random set try to turn off anyway
-            elif power_status == 'ON'\
-                and not control_status == local.configs["audit_attribute_2_bad"] \
-                and rand <= local.configs["audit_gate_default"]:
-                            #add to reservation
-                check = local.add_items_to_reservation(path)
+                # I'm on and in a known bad status - random set try to turn off anyway
+                elif power_status == 'ON' \
+                    and control_status == local.configs["audit_attribute_2_bad"] \
+                    and rand <= local.configs["audit_gate_attribute_2"]:
+                                #add to reservation
+                    check = local.add_items_to_reservation(path)
 
-                # call power off method
-                if check:
-                    local.power_sweep_off(path, name)
-                    local.devices_abnormal_powerdown += 1
+                    # call power off method
+                    if check:
+                        local.power_sweep_off(path, name)
+                        local.devices_abnormal_powerdown += 1
 
-        else:
-            logging.debug('Skipped Auditing %s', resource.FullName)
-            logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
+                # I'm on and in a all other bad status - random set try to turn off anyway
+                elif power_status == 'ON'\
+                    and not control_status == local.configs["audit_attribute_2_bad"] \
+                        and rand <= local.configs["audit_gate_default"]:
+                                # add to reservation
+                    check = local.add_items_to_reservation(path)
 
-    # end master loop
-    logging.info('Main Power Down Loop complete')
-    sleep = 120 + (local.devices_normal_powerdown + local.devices_abnormal_powerdown) * 2
-    time.sleep(sleep)  # ensures the last power command can run
-    local.end_reservation()  # immediately kill reservation releasing devices back to the pool
-    logging.debug('Reservation %s Terminated', local.res_id)
+                    # call power off method
+                    if check:
+                        local.power_sweep_off(path, name)
+                        local.devices_abnormal_powerdown += 1
 
-    logging.info('Starting Reporting Sweep')
-    # build a new complete list of devices and scrap power data
-    local.build_reporting_list()
-
-    # manual test option:
-    # local.reporting_list = local.cs_session.FindResources(resourceFamily='Dell Switch Chassis',
-    #                                                       resourceModel='Z9500',
-    #                                                       maxResults=MAX_RESULTS).Resources
-
-    for item in local.reporting_list:
-        # for every item in the list generated by families, pull details
-        details = local.get_resource_details(item.FullPath)
-
-        # use details to find attributes that match the reporting headers and add them to the report
-        # -- some special headers are handled first, nulls allowed
-        # -- These may change based on the Headers used for reporting!!!  configs.json: reporting_headers
-        for header in local.headers:
-            current_attribute_value = ''  # set to null as default
-            if header == 'Date':
-                current_attribute_value = local.report_dts  # we use a fixed date time for all entries
-            elif header == 'ResourceName':
-                current_attribute_value = details.Name  # device name
-            elif header == 'Reserved':
-                current_attribute_value = item.ReservedStatus  # if it's reserved
             else:
-                for attribute in details.ResourceAttributes:
-                    if attribute.Name == header:
-                        current_attribute_value = attribute.Value  # if found, override the default value
+                logging.debug('Skipped Auditing %s', resource.FullName)
+                logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
 
-            local.report_m[header].append(current_attribute_value)
-            logging.debug('info added to report_m.%s:%s', header, current_attribute_value)
+        # end master loop
+        logging.info('Main Power Down Loop complete')
+        sleep = 120 + (local.devices_normal_powerdown + local.devices_abnormal_powerdown) * 2
+        time.sleep(sleep)  # ensures the last power command can run
+        local.end_reservation()  # immediately kill reservation releasing devices back to the pool
+        logging.debug('Reservation %s Terminated', local.res_id)
 
-    # open SQL connection
-    local.open_ms_sql_connection()
+        logging.info('Starting Reporting Sweep')
+        # build a new complete list of devices and scrap power data
+        local.build_reporting_list()
 
-    # open csv file
-    if local.configs["capture_csv"]:
-        with open(local.csv_file_path, 'ab') as f:
-            csvout = csv.writer(f)
-            csvout.writerow(local.headers)
-            f.close()
+        # manual test option:
+        # local.reporting_list = local.cs_session.FindResources(resourceFamily='Dell Switch Chassis',
+        #                                                       resourceModel='Z9500',
+        #                                                       maxResults=MAX_RESULTS).Resources
 
-    # run the length of the report_M (convert to a single list, line by line, write to csv file)
-    length = len(local.report_m[local.headers[0]])
+        for item in local.reporting_list:
+            # for every item in the list generated by families, pull details
+            details = local.get_resource_details(item.FullPath)
 
-    for idx in xrange(length):
-        local.devices_attribute_capture += 1
-        line = []
-        for h in local.headers:
-            temp = local.report_m[h]
-            line.append(temp[idx])
+            # use details to find attributes that match the reporting headers and add them to the report
+            # -- some special headers are handled first, nulls allowed
+            # -- These may change based on the Headers used for reporting!!!  configs.json: reporting_headers
+            for header in local.headers:
+                current_attribute_value = ''  # set to null as default
+                if header == 'Date':
+                    current_attribute_value = local.report_dts  # we use a fixed date time for all entries
+                elif header == 'ResourceName':
+                    current_attribute_value = details.Name  # device name
+                elif header == 'Reserved':
+                    current_attribute_value = item.ReservedStatus  # if it's reserved
+                else:
+                    for attribute in details.ResourceAttributes:
+                        if attribute.Name == header:
+                            current_attribute_value = attribute.Value  # if found, override the default value
 
-        logging.debug('Report line generated %s', str(line))
-        # print line
+                local.report_m[header].append(current_attribute_value)
+                logging.debug('info added to report_m.%s:%s', header, current_attribute_value)
 
-        # send to sql
-        sql_line = 'INSERT INTO [' + local.configs["sql_table"] + '] VALUES ('
-        check = (len(line) - 1)
+        # open SQL connection
+        local.open_ms_sql_connection()
 
-        for i in xrange(len(line)):
-            if i < check:
-                temp = "'" + line[i] + "',"
-            else:
-                temp = "'" + line[i] + "'"
-
-            sql_line += temp
-        # end for loop
-
-        sql_line += ')'  # close the sql line
-
-        logging.debug('Built SQL command')
-        logging.debug('Source= %s', line)
-        logging.debug('Result= %s', sql_line)
-
-        # write Entry to SQL DB
-        if local.sql_connection:
-            try:
-                local.sql_cursor.execute(sql_line)
-                local.sqlconn.commit()
-                logging.debug('MS SQL Cursor send: %s', sql_line)
-            except pymssql.Error as e:
-                logging.error('MS SQL Cursor Send Error: %s', sql_line)
-                logging.error(e.message)
-
-        # print sql_line  # debug ling
-
-        # then send to csv to save
+        # open csv file
         if local.configs["capture_csv"]:
             with open(local.csv_file_path, 'ab') as f:
                 csvout = csv.writer(f)
-                csvout.writerow(line)
+                csvout.writerow(local.headers)
                 f.close()
 
-    local.close_ms_sql_connection()
-    logging.info('Reporting Sweep Completed')
+        # run the length of the report_M (convert to a single list, line by line, write to csv file)
+        length = len(local.report_m[local.headers[0]])
 
-    local.end_time = local._get_dts()
+        for idx in xrange(length):
+            local.devices_attribute_capture += 1
+            line = []
+            for h in local.headers:
+                temp = local.report_m[h]
+                line.append(temp[idx])
 
-    logging.info('Script Finished')
-    logging.info('Start Time: %s', local.start_time)
-    logging.info('End Time: %s', local.end_time)
+            logging.debug('Report line generated %s', str(line))
+            # print line
 
-    # always call summary after end_time called
-    local.write_summary()
+            # send to sql
+            sql_line = 'INSERT INTO [' + local.configs["sql_table"] + '] VALUES ('
+            check = (len(line) - 1)
+
+            for i in xrange(len(line)):
+                if i < check:
+                    temp = "'" + line[i] + "',"
+                else:
+                    temp = "'" + line[i] + "'"
+
+                sql_line += temp
+            # end for loop
+
+            sql_line += ')'  # close the sql line
+
+            logging.debug('Built SQL command')
+            logging.debug('Source= %s', line)
+            logging.debug('Result= %s', sql_line)
+
+            # write Entry to SQL DB
+            if local.sql_connection:
+                try:
+                    local.sql_cursor.execute(sql_line)
+                    local.sqlconn.commit()
+                    logging.debug('MS SQL Cursor send: %s', sql_line)
+                except pymssql.Error as e:
+                    logging.error('MS SQL Cursor Send Error: %s', sql_line)
+                    logging.error(e.message)
+
+            # print sql_line  # debug ling
+
+            # then send to csv to save
+            if local.configs["capture_csv"]:
+                with open(local.csv_file_path, 'ab') as f:
+                    csvout = csv.writer(f)
+                    csvout.writerow(line)
+                    f.close()
+
+        local.close_ms_sql_connection()
+        logging.info('Reporting Sweep Completed')
+
+        local.end_time = local._get_dts()
+
+        logging.info('Script Finished')
+        logging.info('Start Time: %s', local.start_time)
+        logging.info('End Time: %s', local.end_time)
+
+        # always call summary after end_time called
+        local.write_summary()
+
 
 if __name__ == '__main__':
     main()
-
-

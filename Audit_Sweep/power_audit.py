@@ -32,7 +32,7 @@ class PowerAudit(object):
         self.resource_list = []
         self.connection_list = []
         self.reservation = None
-        self.res_id = ''
+        self.res_id = None
         self.attribute_count = 0
         self.audit_count = 0
         self.sql_connection = None
@@ -40,7 +40,8 @@ class PowerAudit(object):
         self.cs_session = None
         self.reset_time = 0
         # open json config file
-        self.json_file_path = 'configs.json'  # 'C:/Users/ksaper/Documents/Audit_Sweep/configs.json' in the IDE is fine
+        # windows may need full path if on a remote disk
+        self.json_file_path = '{}/configs.json'.format(os.getcwd()).replace('\\', '/')
         self.configs = json.loads(open(self.json_file_path).read())
 
         self.res_duration = self.configs["reservation_duration"]
@@ -164,19 +165,26 @@ class PowerAudit(object):
         This is the master reservation (self.res_id)
         :return: None
         """
-        self.reservation = self.cs_session.CreateImmediateReservation(
-            reservationName=self.configs["reservation_name"], owner=self.configs["qs_admin_username"],
-            durationInMinutes=self.res_duration).Reservation
+        try:
+            self.reservation = self.cs_session.CreateImmediateReservation(
+                reservationName=self.configs["reservation_name"], owner=self.configs["qs_admin_username"],
+                durationInMinutes=self.res_duration).Reservation
 
-        self.res_id = self.reservation.Id
-        logging.info('Created Reservation, ID: %s', self.res_id)
-        logging.debug('Reservation Name: %s', self.configs["reservation_name"])
-        logging.debug('Owner: %s', self.configs["qs_admin_username"])
-        logging.debug('Start Time: %s', self.reservation.StartTime)
-        logging.debug('End Time: %s', self.reservation.EndTime)
-        # sleep for setup
-        time.sleep(15)
-        self._clean_reservation()
+            self.res_id = self.reservation.Id
+            logging.info('Created Reservation, ID: %s', self.res_id)
+            logging.debug('Reservation Name: %s', self.configs["reservation_name"])
+            logging.debug('Owner: %s', self.configs["qs_admin_username"])
+            logging.debug('Start Time: %s', self.reservation.StartTime)
+            logging.debug('End Time: %s', self.reservation.EndTime)
+            # sleep for setup
+            time.sleep(15)
+            self._clean_reservation()
+        except CloudShellAPIError as e:
+            logging.debug('Unable to create a reservation')
+            logging.critical('Error on CreateImmediateReservation: {}'.format(e.message))
+            logging.debug('Reservation Name: {}  Owner: {}  Duration: {}'.format(self.configs["reservation_name"],
+                                                                                 self.configs["qs_admin_username"],
+                                                                                 self.res_duration))
 
     def _clean_reservation(self):
         """
@@ -394,7 +402,7 @@ class PowerAudit(object):
         return False
 
     def inspect_console_connectivity(self, device_name=''):
-        logging.info('Inspect Console Connectivty called on %s' % device_name)
+        logging.info('Inspect Console Connectivity called on %s' % device_name)
         details = self.cs_session.GetResourceDetails(resourceFullPath=device_name)
         console_check_name = self.configs['console_connect_att_name']
         console_ip_att = self.configs['console_ip_att_name']
@@ -736,50 +744,53 @@ class PowerAudit(object):
         logging.info('%s Started' % self.who_am_i)
         self.create_reservation()
         # build resource list
-        self.create_resource_list()
-        self._set_reset_time()
-        maxx = len(self.resource_list)
-        loop_count = 0
+        if not self.res_id:
+            logging.error('No Reservation ID, unable to continue')
+        else:
+            self.create_resource_list()
+            self._set_reset_time()
+            maxx = len(self.resource_list)
+            loop_count = 0
 
-        idx = 1
-        for resource in self.resource_list:  # Main Loop
-            if time.mktime(time.localtime()) > self.reset_time:
-                self._start_cloudshell_session()
-                self._set_reset_time()
-            try:
-                loop_count += 1
-                logging.info('Resource %s (%s of %s)' % (resource.Name, loop_count, maxx))
-                if self.audit_all or idx == self.audit_check:
-                    # if it's a all audit day or the index matches today's number - audit the device
-                        self._audit_item(dev_name=resource.Name)
-                if idx == self.configs["audit_rotation"]:
-                    idx = 1
-                else:
-                    idx += 1
-                # do attribute scrape for all devices (outside the reservation & inspection process)
-                self.attribute_scrape(device_name=resource.Name)
-            except StandardError as err:
-                logging.warning(err.message)
-                self._start_cloudshell_session()  # in case of timeout
-        self.end_reservation()
+            idx = 1
+            for resource in self.resource_list:  # Main Loop
+                if time.mktime(time.localtime()) > self.reset_time:
+                    self._start_cloudshell_session()
+                    self._set_reset_time()
+                try:
+                    loop_count += 1
+                    logging.info('Resource %s (%s of %s)' % (resource.Name, loop_count, maxx))
+                    if self.audit_all or idx == self.audit_check:
+                        # if it's a all audit day or the index matches today's number - audit the device
+                            self._audit_item(dev_name=resource.Name)
+                    if idx == self.configs["audit_rotation"]:
+                        idx = 1
+                    else:
+                        idx += 1
+                    # do attribute scrape for all devices (outside the reservation & inspection process)
+                    self.attribute_scrape(device_name=resource.Name)
+                except StandardError as err:
+                    logging.warning(err.message)
+                    self._start_cloudshell_session()  # in case of timeout
+            self.end_reservation()
 
-        # sql dump of report_m
-        self._send_report_to_sql()
+            # sql dump of report_m
+            self._send_report_to_sql()
 
-        # optional csv capture
-        if self.configs['capture_csv']:
-            self.send_report_to_csv()
+            # optional csv capture
+            if self.configs['capture_csv']:
+                self.send_report_to_csv()
 
-        # dump to summary
-        self.end_time = self._get_dts()
-        self.write_to_summary()
+            # dump to summary
+            self.end_time = self._get_dts()
+            self.write_to_summary()
 
-        if self.audit_all:
-            # if it's the Audit All day, email the list of bad devices
-            self.send_email(subject='%s Results for %s' % (self.who_am_i, self.report_dts),
-                            message=self.summary_txt)
+            if self.audit_all:
+                # if it's the Audit All day, email the list of bad devices
+                self.send_email(subject='%s Results for %s' % (self.who_am_i, self.report_dts),
+                                message=self.summary_txt)
 
-        self._send_report_to_sql()
+            self._send_report_to_sql()
 
     def select_audit(self, device_list=[]):
         """
@@ -795,30 +806,33 @@ class PowerAudit(object):
         print 'Creating Reservation'
 
         self.create_reservation()
-        print '-- %s Reservation Created: %s' % (time.strftime('%H:%M:%S'), self.res_id)
-        print 'Building Resource List'
-        self.create_custom_resource_list(device_list)
-        print '-- %s Resource List Built' % time.strftime('%H:%M:%S')
-        for resource in self.resource_list:
-            count += 1
-            if self.is_available(resource.Name):
-                line = 'Auditing %s (%s of %s)' % (resource.Name, count, maxx)
-                print '-- %s %s' % (time.strftime('%H:%M:%S'), line)
-                logging.info(line)
-                self._audit_item(dev_name=resource.Name)
-                self.attribute_scrape(device_name=resource.Name)
-            else:
-                line = '!! Unable to Audit %s - verify that the resource is available (%s of %s)' % (resource.Name,
-                                                                                                     count, maxx)
-                print line
-                logging.info(line)
+        if not self.res_id:
+            print '!! Reservation Not Created -- Unable to Continue'
+        else:
+            print '-- %s Reservation Created: %s' % (time.strftime('%H:%M:%S'), self.res_id)
+            print 'Building Resource List'
+            self.create_custom_resource_list(device_list)
+            print '-- %s Resource List Built' % time.strftime('%H:%M:%S')
+            for resource in self.resource_list:
+                count += 1
+                if self.is_available(resource.Name):
+                    line = 'Auditing %s (%s of %s)' % (resource.Name, count, maxx)
+                    print '-- %s %s' % (time.strftime('%H:%M:%S'), line)
+                    logging.info(line)
+                    self._audit_item(dev_name=resource.Name)
+                    self.attribute_scrape(device_name=resource.Name)
+                else:
+                    line = '!! Unable to Audit %s - verify that the resource is available (%s of %s)' % (resource.Name,
+                                                                                                         count, maxx)
+                    print line
+                    logging.info(line)
 
-        # complete reservation
-        self.end_reservation()
+            # complete reservation
+            self.end_reservation()
 
-        # run summary
-        self.end_time = self._get_dts()
-        self.write_to_summary()
+            # run summary
+            self.end_time = self._get_dts()
+            self.write_to_summary()
 
-        print '\n ******** \n'
-        print self.summary_txt
+            print '\n ******** \n'
+            print self.summary_txt
