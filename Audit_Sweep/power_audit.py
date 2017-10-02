@@ -177,14 +177,16 @@ class PowerAudit(object):
             logging.debug('Start Time: %s', self.reservation.StartTime)
             logging.debug('End Time: %s', self.reservation.EndTime)
             # sleep for setup
-            time.sleep(15)
-            self._clean_reservation()
         except CloudShellAPIError as e:
+            self.res_id = None
             logging.debug('Unable to create a reservation')
             logging.critical('Error on CreateImmediateReservation: {}'.format(e.message))
             logging.debug('Reservation Name: {}  Owner: {}  Duration: {}'.format(self.configs["reservation_name"],
                                                                                  self.configs["qs_admin_username"],
                                                                                  self.res_duration))
+        if self.res_id:
+            time.sleep(15)
+            self._clean_reservation()
 
     def _clean_reservation(self):
         """
@@ -193,9 +195,14 @@ class PowerAudit(object):
         """
         # don't want any services in the reservation, like the power service
         res_details = self.cs_session.GetReservationDetails(self.res_id).ReservationDescription
-        for service in res_details.Services:
-            self.cs_session.RemoveServicesFromReservation(reservationId=self.res_id, services=[service.ServiceName])
-            time.sleep(2)
+        try:
+            for service in res_details.Services:
+                self.cs_session.RemoveServicesFromReservation(reservationId=self.res_id, services=[service.ServiceName])
+                time.sleep(2)
+        except CloudShellAPIError as e:
+            logging.debug('self._clean_reservation: Trying to remove existing services from a fresh reservation')
+            logging.error('Error on Clean Reservation: {}'.format(e.message))
+            logging.debug('Reservation:{}, Services(list): {}'.format(self.res_id, res_details.Services))
 
     def end_reservation(self):
         self.cs_session.EndReservation(self.res_id)
