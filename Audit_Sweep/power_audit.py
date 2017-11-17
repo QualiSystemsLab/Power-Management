@@ -1,6 +1,6 @@
 import os
+from subprocess import PIPE, Popen
 import platform
-import subprocess
 import json
 import logging
 from base64 import b64decode
@@ -13,11 +13,23 @@ import cloudshell.api.cloudshell_api as cs_api
 from cloudshell.api.common_cloudshell_api import CloudShellAPIError
 # from cloudshell.cli.cli import CLI
 import telnetlib
-import re
 
 LOG_DICT = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "WARN": 30, "ERROR": 40, "CRITICAL": 50, "CRIT": 50}
 DAY_DICT = {"SUN": "Sunday", "MON": "Monday", "TUE": "Tuesday", "WED": "Wednesday", "THR": "Thursday", "FRI": "Friday",
             "SAT": "Saturday"}
+STATUS_ERROR_DICT = {'FAIL_UNKNOWN_PROMPT': '!-Verify Device Prompt  ',
+                      'FAIL_SHUTDOWN_CHECK': '!-Verify Proper Shutdown  ',
+                      'FAIL_MAPPING': '!-PDU Port not Mapped to Device  ',
+                      'FAIL_NO_COMMAND': '!-No Power Commands  ',
+                      'FAIL_CDU_COMMANDS': '!-Failure to run PDU Command',
+                      'REQUIRES_CHECK': '!-Unknown Errors  ',
+                      'FAIL_DEVICE_CONSOLE': '!-Console Connection Issues  '
+                      }
+ATTRIBUTUE_ERROR_DICT = {'PDU_Connected': '!-No Power Port on Device  ',
+                          'Mgmt_IP_Pingable': '!-Unable to Ping Address  ',
+                          'Console_IP_Pingable': '!-Unable to Ping Console IP  ',
+                          'Console_Port_Status': '!-Unable to Connect via Console  '
+                          }
 DAY_HEADERS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 MAX_RESULTS = 5000
 DELL_CONSOLE_ATT_NAME = 'Console IP'  # Networking Device Default should be 'Console Server IP Address'
@@ -26,7 +38,6 @@ DELL_PDU_STATUS_ATT = 'Power_Control_Status'
 
 
 class PowerAudit(object):
-
     def __init__(self):
         self.who_am_i = ''
         self.resource_list = []
@@ -41,7 +52,8 @@ class PowerAudit(object):
         self.reset_time = 0
         # open json config file
         # windows may need full path if on a remote disk
-        self.json_file_path = '{}/configs.json'.format(os.getcwd()).replace('\\', '/')
+        # self.json_file_path = 'E:/path'   # manual set
+        self.json_file_path = '{}/configs.json'.format(os.getcwd()).replace('\\', '/')  # manually set this
         self.configs = json.loads(open(self.json_file_path).read())
 
         self.res_duration = self.configs["reservation_duration"]
@@ -81,7 +93,7 @@ class PowerAudit(object):
         self.email_time = time.strftime('%a, %d %b %Y')
 
         self.csv_file_path = self.configs["csv_folder"] + "/" + self.configs["who_am_i"] + "_" + \
-            time.strftime('%Y_%m_%d_%H_%M') + '.csv'
+                             time.strftime('%Y_%m_%d_%H_%M') + '.csv'
 
         self.boot_time = self.configs['boot_time_wait']
         # build reporting headers (based on BI Tracking)
@@ -95,6 +107,7 @@ class PowerAudit(object):
         # dict of list of list
         self.error_m = {}
         self._start_cloudshell_session()
+
     # end __init__
 
     def _start_cloudshell_session(self):
@@ -104,7 +117,7 @@ class PowerAudit(object):
             self.cs_session = cs_api.CloudShellAPISession(self.configs["qs_server_hostname"],
                                                           self.configs["qs_admin_username"],
                                                           b64decode(self.configs["qs_admin_password"]),
-                                                          domain=self.configs["qs_cloudshell_domain"],port=8029)
+                                                          domain=self.configs["qs_cloudshell_domain"], port=8029)
             logging.info('Connected to CloudShell @ %s', self.configs["qs_server_hostname"])
         except CloudShellAPIError as e:
             msg = self._get_dts() + '\n Critical Error connecting to CloudShell' + \
@@ -122,7 +135,7 @@ class PowerAudit(object):
     def _get_dts(self):
         return time.strftime('%Y-%m-%d %H:%M:%S')
 
-    def send_email(self,subject='', message=''):
+    def send_email(self, subject='', message=''):
         msg = MIMEText(message)
         msg['Subject'] = subject
         msg['From'] = self.configs["smtp_user"]
@@ -144,7 +157,7 @@ class PowerAudit(object):
 
     def create_custom_resource_list(self, dev_name_list=[]):
         for name in dev_name_list:
-            logging.debug('Adding %s to self.resource_list' %name)
+            logging.debug('Adding %s to self.resource_list' % name)
             temp = self.cs_session.FindResources(resourceFullName=name).Resources
             for item in temp:
                 if '/' not in item.FullName:
@@ -228,7 +241,10 @@ class PowerAudit(object):
             try:
                 self.cs_session.PowerOnResource(reservationId=self.res_id, resourceFullPath=device_name)
                 time.sleep(self.boot_time)  # let it boot up
+                self.set_attribute_value(device_name, 'Power_Control_Status', 'PASS')  # set power good
             except CloudShellAPIError as e:
+                self.set_attribute_value(device_name, 'Power_Control_Status',
+                                         'REQUIRES_CHECK')  # failed trying to power
                 logging.error(e.message)
         else:
             self.set_attribute_value(device_name, 'Power_Control_Status', 'FAIL_NO_COMMAND')
@@ -251,20 +267,35 @@ class PowerAudit(object):
         :param full_path:
         :return:
         """
-        return self.cs_session.GetResourceDetails(full_path)
+        try:
+            return self.cs_session.GetResourceDetails(full_path)
+        except CloudShellAPIError as err:
+            logging.warning(err.message)
+            return None
 
     def add_to_reservation(self, device_name=''):
-        self.cs_session.AddResourcesToReservation(reservationId=self.res_id, resourcesFullPath=[device_name])
+        try:
+            self.cs_session.AddResourcesToReservation(reservationId=self.res_id, resourcesFullPath=[device_name])
+            logging.debug('{} Added to Reservation'.format(device_name))
+        except CloudShellAPIError as err:
+            logging.warning(err.message)
 
     def remove_from_reservation(self, device_name=''):
-        self.cs_session.RemoveResourcesFromReservation(reservationId=self.res_id, resourcesFullPath=[device_name])
+        try:
+            self.cs_session.RemoveResourcesFromReservation(reservationId=self.res_id, resourcesFullPath=[device_name])
+        except CloudShellAPIError as err:
+            logging.warning(err.message)
 
     def get_attribute_value(self, dev_name, att_name):
         return self.cs_session.GetAttributeValue(resourceFullPath=dev_name, attributeName=att_name).Value
 
     def set_attribute_value(self, dev_name, att_name, value):
-        self.cs_session.SetAttributeValue(resourceFullPath=dev_name, attributeName=att_name, attributeValue=value)
-        logging.debug('Set %s Attribute %s to value of %s' %(dev_name, att_name, value))
+        try:
+            self.cs_session.SetAttributeValue(resourceFullPath=dev_name, attributeName=att_name, attributeValue=value)
+            logging.debug('Set %s Attribute %s to value of %s' % (dev_name, att_name, value))
+        except CloudShellAPIError as err:
+            logging.warning('Set Attribute Value >> Target:{}  Att:{} Value:{}'.format(dev_name, att_name, value))
+            logging.warning(err.message)
 
     def is_available(self, dev_name):
         all_items = self.cs_session.GetResourceAvailability(resourcesNames=[dev_name]).Resources
@@ -284,25 +315,48 @@ class PowerAudit(object):
                 else:
                     return True
             else:
-
                 return False
+
+    def _cmdline(self, command):
+        process = Popen(
+            args=command,
+            stdout=PIPE,
+            shell=True
+        )
+        return process.communicate()[0]
 
     def _ping(self, address='8.8.8.8', count=1):
-        current_platform = platform.system().lower()
-        if current_platform == 'win32' or current_platform == 'windows':
-            count_type = '-n'
-        else:
-            count_type = '-c'
+        check = False
+        packet_Tx = count
+        pass_rate = 100
 
-        response = os.system("ping %s %s %s" %(count_type, count, address))
-        if response == 0:
-            output = subprocess.check_output(['ping', count_type, count, address])
-            if 'UNREACHABLE' in output.upper:
-                return False
-            else:
-                return True
+        my_plat = platform.system().lower()
+        if my_plat == 'darwin':
+            count_type = 'c'
+        elif my_plat == 'win32' or my_plat == 'windows':
+            count_type = 'n'
         else:
-            return False
+            count_type = 'c'
+
+        raw = self._cmdline("ping -%s %s %s" % (count_type, packet_Tx, address))
+
+        if my_plat == 'darwin':
+            raw = raw.split('%')[0]
+            loss_rate = float(raw.split(' ')[-1])
+        elif my_plat == 'win32' or my_plat == 'windows':
+            raw = raw.split('%')[0]
+            raw = raw.split(' ')[-1]
+            loss_rate = float(raw[1:])
+        else:
+            raw = raw.split('%')[0]
+            loss_rate = float(raw.split(' ')[-1])
+
+        packet_Rx = 100 - loss_rate
+
+        if packet_Rx >= pass_rate:
+            check = True
+        logging.info('Pinged %s packets - %s%s Received' % (packet_Tx, packet_Rx, '%'))
+        return check
 
     def console_pingable(self, device_name='', console_ip_attribute_name=DELL_CONSOLE_ATT_NAME):
         try:
@@ -310,19 +364,26 @@ class PowerAudit(object):
                                                            attributeName=console_ip_attribute_name).Value
             return self._ping(address=console_ip)
         except Exception, e:
-            logging.error('Error Pinging console (IP= %s) for %s' %(console_ip, device_name))
-            logging.error('Console IP Attribute lookup: %s' %DELL_CONSOLE_ATT_NAME)
+            logging.error('Error Pinging console (IP= %s) for %s' % (console_ip, device_name))
+            logging.error('Console IP Attribute lookup: %s' % DELL_CONSOLE_ATT_NAME)
             logging.error(e.message)
             return False
 
     def device_pingable(self, device_name=''):
+        final_check = False
+        n = 0
         try:
             dev_address = self.cs_session.GetResourceDetails(resourceFullPath=device_name).Address
-            return self._ping(address=dev_address)
+            while (n < 18) and (not final_check):
+                final_check = self._ping(address=dev_address)
+                n += 1
+                if not final_check:
+                    time.sleep(10)  # sleep only if false
         except Exception, e:
-            logging.error('Error trying to ping %s' %device_name)
+            logging.error('Error trying to ping %s' % device_name)
             logging.error(e.message)
-            return False
+        logging.debug('Pinged {} times - Final Result: {}'.format(n, final_check))
+        return final_check
 
     def inspect_pdu_connected(self, device_name=''):
         # look to see if the device has a PDU Connection
@@ -336,7 +397,7 @@ class PowerAudit(object):
             else:
                 self.set_attribute_value(device_name, pdu_att_name, 'FALSE')  # doesn't have a PDU attached
         else:
-            logging.warning('No attribute named %s available on %s' %(pdu_att_name, device_name))  # bad news
+            logging.warning('No attribute named %s available on %s' % (pdu_att_name, device_name))  # bad news
 
         return False
 
@@ -375,18 +436,18 @@ class PowerAudit(object):
                 if l1_count == len(short_conn_list):
                     has_reg_connections = False
         con_att_name = self.configs['connections_att_name']
-        if self._has_attribute(details.ResourceAttributes, con_att_name):   # has attribute check
-            logging.debug('Setting value for %s on %s' %(con_att_name, device_name))
-            if has_L1 and has_reg_connections:              # both L1 and non-L1 Connections
+        if self._has_attribute(details.ResourceAttributes, con_att_name):  # has attribute check
+            logging.debug('Setting value for %s on %s' % (con_att_name, device_name))
+            if has_L1 and has_reg_connections:  # both L1 and non-L1 Connections
                 self.set_attribute_value(device_name, con_att_name, 'L1_&_Direct')
-            elif has_L1 and not has_reg_connections:        # L1 only
+            elif has_L1 and not has_reg_connections:  # L1 only
                 self.set_attribute_value(device_name, con_att_name, 'L1')
-            elif has_reg_connections:                             # non-L1 Only
+            elif has_reg_connections:  # non-L1 Only
                 self.set_attribute_value(device_name, con_att_name, 'Direct')
-            else:                                                       # non connections found
+            else:  # non connections found
                 self.set_attribute_value(device_name, con_att_name, 'NONE')
         else:
-            logging.warning('No attribute named %s available on %s' %(con_att_name, device_name))  # bad news
+            logging.warning('No attribute named %s available on %s' % (con_att_name, device_name))  # bad news
 
         if has_L1 or has_reg_connections:
             return True
@@ -404,7 +465,7 @@ class PowerAudit(object):
             else:
                 self.set_attribute_value(device_name, network_check_name, 'FAIL')
         else:
-            logging.warning('No Attribute named %s on %s' %(network_check_name, device_name))
+            logging.warning('No Attribute named %s on %s' % (network_check_name, device_name))
 
         return False
 
@@ -414,19 +475,19 @@ class PowerAudit(object):
         console_check_name = self.configs['console_connect_att_name']
         console_ip_att = self.configs['console_ip_att_name']
         if self._has_attribute(details.ResourceAttributes, console_check_name) and \
-            self._has_attribute(details.ResourceAttributes, console_ip_att):        # has both attributes
-                self.check_console_port(device_name=device_name)                    # normalize to Dell Std
-                console_ip = self.get_attribute_value(device_name, console_ip_att)  # get console IP
-                if self._ping(address=console_ip):                                  # ping console IP
-                    self.set_attribute_value(device_name, console_check_name, 'PASS')
-                    return True
-                else:
-                    self.set_attribute_value(device_name, console_check_name, 'FAIL')
-                    self.set_attribute_value(device_name, self.configs['console_port_connect_att_name'], 'FAIL')
-                    self.set_attribute_value(device_name, self.configs['prompt_att_name'], 'UNKNOWN')
+                self._has_attribute(details.ResourceAttributes, console_ip_att):  # has both attributes
+            self.check_console_port(device_name=device_name)  # normalize to Dell Std
+            console_ip = self.get_attribute_value(device_name, console_ip_att)  # get console IP
+            if self._ping(address=console_ip):  # ping console IP
+                self.set_attribute_value(device_name, console_check_name, 'PASS')
+                return True
+            else:
+                self.set_attribute_value(device_name, console_check_name, 'FAIL')
+                self.set_attribute_value(device_name, self.configs['console_port_connect_att_name'], 'FAIL')
+                self.set_attribute_value(device_name, self.configs['prompt_att_name'], 'UNKNOWN')
         else:
-            logging.warning('Missing of of the following attributes on %s or %s on %s'\
-                            %(console_check_name, console_ip_att, device_name))
+            logging.warning('Missing of of the following attributes on %s or %s on %s'
+                            % (console_check_name, console_ip_att, device_name))
         return False
 
     def check_console_port(self, device_name=''):
@@ -437,7 +498,7 @@ class PowerAudit(object):
                 port += 30000
 
             self.set_attribute_value(device_name, DELL_CONSOLE_PORT_NAME, str(port))
-            logging.info('Fixed console port value, new value = %s on %s' %(port, device_name))
+            logging.info('Fixed console port value, new value = %s on %s' % (port, device_name))
         else:
             port = -99
         return str(port)
@@ -459,7 +520,7 @@ class PowerAudit(object):
             reg_ex_char += char
 
         if self._has_attribute(device_details.ResourceAttributes, DELL_CONSOLE_PORT_NAME) and \
-            self._has_attribute(device_details.ResourceAttributes, DELL_CONSOLE_PORT_NAME):
+                self._has_attribute(device_details.ResourceAttributes, DELL_CONSOLE_PORT_NAME):
             console_ip = self.get_attribute_value(device_name, DELL_CONSOLE_ATT_NAME)
             console_port = self.get_attribute_value(device_name, DELL_CONSOLE_PORT_NAME)
 
@@ -468,7 +529,7 @@ class PowerAudit(object):
             tn.write('\n')
             time.sleep(1)
             tn.write('\n')
-            raw_output = tn.expect([r'%s' %reg_ex_char], 2)
+            raw_output = tn.expect([r'%s' % reg_ex_char], 2)
             tn.close()
         except Exception as e:
             print e.message
@@ -486,8 +547,11 @@ class PowerAudit(object):
         else:
             self.prompt = 'UNKNOWN'
 
-        self.set_attribute_value(device_name, 'Console_Port_Status', console_check)
-        self.set_attribute_value(device_name, 'Console_Prompt', self.prompt)
+        try:
+            self.set_attribute_value(device_name, 'Console_Port_Status', console_check)
+            self.set_attribute_value(device_name, 'Console_Prompt', self.prompt)
+        except StandardError as e:
+            logging.warning(e.message)
 
         return self.prompt
 
@@ -533,98 +597,88 @@ class PowerAudit(object):
         logging.info('Attribute Scrape called on %s ' % device_name)
         self.attribute_count += 1
         details = self.get_resource_details(device_name)
-        pdu_connection_bad = False
-        current_values = {}
-        for each in self.headers:
-            current_values[each] = []
+        if details:
+            pdu_connection_bad = False
+            current_values = {}
+            for each in self.headers:
+                current_values[each] = []
 
-        for header in self.headers:
-            temp_value = ''
-            if header == 'Date':
-                temp_value = self.report_dts
-            elif header == 'ResourceName':
-                temp_value = device_name
-            elif header == 'Reserved':
-                if self.is_available(device_name):
-                    temp_value = 'Not in Reservations'
+            for header in self.headers:
+                temp_value = ''
+                if header == 'Date':
+                    temp_value = self.report_dts
+                elif header == 'ResourceName':
+                    temp_value = device_name
+                elif header == 'Reserved':
+                    if self.is_available(device_name):
+                        temp_value = 'Not in Reservations'
+                    else:
+                        temp_value = 'Reserved'
                 else:
-                    temp_value = 'Reserved'
-            else:
-                if self._has_attribute(details.ResourceAttributes, header):
-                    temp_value = self.get_attribute_value(device_name, header)
+                    if self._has_attribute(details.ResourceAttributes, header):
+                        temp_value = self.get_attribute_value(device_name, header)
 
-            self.report_m[header].append(temp_value)
-            current_values[header] = temp_value
-            logging.debug('data added to report_m %s:%s' %(header, temp_value))
+                self.report_m[header].append(temp_value)
+                current_values[header] = temp_value
+                logging.debug('data added to report_m %s:%s' % (header, temp_value))
 
-        pdu_status_check = self.get_attribute_value(device_name, DELL_PDU_STATUS_ATT)
-        if pdu_status_check != 'PASS' and pdu_status_check != 'NONE':
-            pdu_connection_bad = True
+            pdu_status_check = self.get_attribute_value(device_name, DELL_PDU_STATUS_ATT)
+            if pdu_status_check != 'PASS' and pdu_status_check != 'NONE':
+                pdu_connection_bad = True
 
-        # -> add info to the error_m
-        if self._is_flagged(att_dict=current_values) or pdu_connection_bad:
-            rack_loc = current_values['Rack']  # based on how to group the reporting and is a header for the SQL Tbl
-            if rack_loc not in self.error_m.keys():
-                self.error_m[rack_loc] = []  # if the key isn't there, add it to the dict.
+            # -> add info to the error_m
+            if self._is_flagged(att_dict=current_values) or pdu_connection_bad:
+                rack_loc = current_values['Rack']  # based on how to group the reporting and is a header for the SQL Tbl
+                if rack_loc not in self.error_m.keys():
+                    self.error_m[rack_loc] = []  # if the key isn't there, add it to the dict.
 
-            line = [rack_loc]
-            console_ip_port = '%s:%s' % (self.get_attribute_value(device_name, DELL_CONSOLE_ATT_NAME),
-                                         self.get_attribute_value(device_name, DELL_CONSOLE_PORT_NAME))
-            temp_d = {'name': device_name,
-                      'address': details.Address,
-                      'console': console_ip_port,
-                      'error': ''}
+                line = [rack_loc]
+                console_ip_port = '%s:%s' % (self.get_attribute_value(device_name, DELL_CONSOLE_ATT_NAME),
+                                             self.get_attribute_value(device_name, DELL_CONSOLE_PORT_NAME))
+                temp_d = {'name': device_name,
+                          'address': details.Address,
+                          'console': console_ip_port,
+                          'error': ''}
 
-            for x_head in self.headers:
-                temp_error = ''
-                skip_list = ['Rack', 'Date', 'ResourceName', 'Reserved', 'Connections']
-                if x_head not in skip_list:  # yeah this would change base on the above block
-                    # -> this is totally custom
-                    header_value = current_values[x_head]
-                    if header_value in ['FAIL', 'FALSE']:
-                        temp_error += self._custom_att_error_flag(attribute_name=x_head)
+                for x_head in self.headers:
+                    temp_error = ''
+                    skip_list = ['Rack', 'Date', 'ResourceName', 'Reserved', 'Connections']
+                    if x_head not in skip_list:  # yeah this would change base on the above block
+                        # -> this is totally custom
+                        header_value = current_values[x_head]
+                        if header_value in ['FAIL', 'FALSE']:
+                            temp_error += self._custom_att_error_flag(attribute_name=x_head)
 
-                if temp_error != '':
-                    logging.debug('Attribute Error found on %s: %s' % (device_name, temp_error))
+                    if temp_error != '':
+                        logging.debug('Attribute Error found on %s: %s' % (device_name, temp_error))
 
-                temp_d['error'] += temp_error
+                    temp_d['error'] += temp_error
 
-            if pdu_connection_bad:
-                temp_error = self._custom_pdu_status_error_flag(device_name)
-                temp_d['error'] += temp_error
-                logging.debug('PDU Status Error found on %s: %s' % (device_name, temp_error))
+                if pdu_connection_bad:
+                    temp_error = self._custom_pdu_status_error_flag(device_name)
+                    temp_d['error'] += temp_error
+                    logging.debug('PDU Status Error found on %s: %s' % (device_name, temp_error))
 
-            # for key in temp_d.keys():
-            #     line.append(temp_d[key])
-            line.append(temp_d['name'])
-            line.append(temp_d['address'])
-            line.append(temp_d['console'])
-            line.append(temp_d['error'])
+                # for key in temp_d.keys():
+                #     line.append(temp_d[key])
+                line.append(temp_d['name'])
+                line.append(temp_d['address'])
+                line.append(temp_d['console'])
+                line.append(temp_d['error'])
 
-            self.error_m[rack_loc].append(line)
+                self.error_m[rack_loc].append(line)
 
-        logging.debug('Attribute Scrape results: %s' % current_values)
+            logging.debug('Attribute Scrape results: %s' % current_values)
+        else:
+            logging.warning('Skipped {} No Details available'.format(device_name))
         return current_values
 
     def _custom_att_error_flag(self, attribute_name):
-        error_dict = {'PDU_Connected': '!-No Power Port on Device  ',
-                      'Mgmt_IP_Pingable': '!-Unable to Ping Address  ',
-                      'Console_IP_Pingable': '!-Unable to Ping Console IP  ',
-                      'Console_Port_Status': '!-Unable to Connect via Console  '
-                      }
-        return error_dict.get(attribute_name, '!-Unknown  ')
+        return ATTRIBUTUE_ERROR_DICT.get(attribute_name, '!-Unknown  ')
 
     def _custom_pdu_status_error_flag(self, dev_name):
-        error_dict = {'FAIL_UNKNOWN_PROMPT': '!-Verify Device Prompt  ',
-                      'FAIL_SHUTDOWN_CHECK': '!-Verify Proper Shutdown  ',
-                      'FAIL_MAPPING': '!-PDU Port not Mapped to Device  ',
-                      'FAIL_NO_COMMAND': '!-No Power Commands  ',
-                      'FAIL_CDU_COMMANDS': '!-Failure to run PDU Command',
-                      'REQUIRES_CHECK': '!-Unknown Errors  ',
-                      'FAIL_DEVICE_CONSOLE': '!-Console Connection Issues  '
-                      }
         status = self.get_attribute_value(dev_name, DELL_PDU_STATUS_ATT)
-        return error_dict.get(status, 'NONE')
+        return STATUS_ERROR_DICT.get(status, 'NONE')
 
     def _send_report_to_sql(self):
         logging.debug('Sending report info to SQL')
@@ -704,7 +758,7 @@ class PowerAudit(object):
         if len(self.error_m) > 0:
             sorted_keys = sorted(self.error_m.keys())
             self.summary_txt += 'Rack      Dev Name                 Address          ' + \
-                'Console Info           Error(s)\n'
+                                'Console Info           Error(s)\n'
             for key in sorted_keys:
                 rack_list = self.error_m[key]
                 for line in rack_list:
@@ -729,19 +783,27 @@ class PowerAudit(object):
             logging.info('Auditing %s' % dev_name)
             self.audit_count += 1
             self.add_to_reservation(dev_name)
-            has_pdu = self.inspect_pdu_connected(device_name=dev_name)
-            if has_pdu:
-                # -> Power it on so we can look @ it
-                self.power_on(device_name=dev_name)  # may be powered on even if now PDU connection listed
-            self.inspect_connections(device_name=dev_name)
-            if self.inspect_network_connectivity(device_name=dev_name):
-                if self.inspect_console_connectivity(device_name=dev_name):
-                    self.check_prompt(device_name=dev_name)
-            # ->now power off
-            if has_pdu:
-                self.power_off(device_name=dev_name)
+            try:
+                has_pdu = self.inspect_pdu_connected(device_name=dev_name)
+                if has_pdu:
+                    # -> Power it on so we can look @ it
+                    self.power_on(device_name=dev_name)  # may be powered on even if now PDU connection listed
+                self.inspect_connections(device_name=dev_name)
+                if self.inspect_network_connectivity(device_name=dev_name):
+                    if self.inspect_console_connectivity(device_name=dev_name):
+                        self.check_prompt(device_name=dev_name)
+                # ->now power off
+                if has_pdu:
+                    self.power_off(device_name=dev_name)
+            except StandardError as err:
+                logging.warning('Error in auditing {}'.format(dev_name))
+                logging.warning(err.message)
+
             # take outta the reservation
-            self.remove_from_reservation(device_name=dev_name)  # release it back to the pool
+            try:
+                self.remove_from_reservation(device_name=dev_name)  # release it back to the pool
+            except CloudShellAPIError as err:
+                logging.warning(err.message)
 
     def _set_reset_time(self):
         self.reset_time = time.mktime(time.localtime()) + self.configs['session_reset_time']
@@ -761,7 +823,7 @@ class PowerAudit(object):
 
             idx = 1
             for resource in self.resource_list:  # Main Loop
-                if time.mktime(time.localtime()) > self.reset_time:
+                if time.mktime(time.localtime()) > self.reset_time:  # checks for possible session timeout
                     self._start_cloudshell_session()
                     self._set_reset_time()
                 try:
@@ -769,7 +831,7 @@ class PowerAudit(object):
                     logging.info('Resource %s (%s of %s)' % (resource.Name, loop_count, maxx))
                     if self.audit_all or idx == self.audit_check:
                         # if it's a all audit day or the index matches today's number - audit the device
-                            self._audit_item(dev_name=resource.Name)
+                        self._audit_item(dev_name=resource.Name)
                     if idx == self.configs["audit_rotation"]:
                         idx = 1
                     else:
@@ -779,6 +841,9 @@ class PowerAudit(object):
                 except StandardError as err:
                     logging.warning(err.message)
                     self._start_cloudshell_session()  # in case of timeout
+            # end Main Loop
+
+            # end reservation, done walking the list
             self.end_reservation()
 
             # sql dump of report_m

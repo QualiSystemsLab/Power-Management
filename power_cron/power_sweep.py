@@ -282,8 +282,11 @@ class power_sweep(object):
         :param str resource_full_path: full path to the resource
         :return:
         """
-        self.cs_session.PowerOffResource(resourceFullPath=resource_full_path)
-        logging.info("API Power cmd call 'PowerOffResource' %s", resource_full_path)
+        try:
+            self.cs_session.PowerOffResource(resourceFullPath=resource_full_path)
+            logging.info("API Power cmd call 'PowerOffResource' %s", resource_full_path)
+        except CloudShellAPIError as err:
+            logging.warning(err.message)
 
     def _has_shutdown(self, cmd_list):
         """
@@ -437,68 +440,72 @@ def main():
 
         # master loop to turn items off
         for resource in local.resource_list:
+            try:
+                if len(resource.Reservations) == 0:
+                    local.devices_max_powersweep += 1
+                    rand = random.random()
+                    path = resource.FullPath
+                    name = resource.FullName
+                    power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
+                    control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
 
-            if len(resource.Reservations) == 0:
-                local.devices_max_powersweep += 1
-                rand = random.random()
-                path = resource.FullPath
-                name = resource.FullName
-                power_status = local._get_attribute_value(path, local.configs["audit_attribute_1"])
-                control_status = local._get_attribute_value(path, local.configs["audit_attribute_2"])
 
+                    # debug logging
+                    logging.debug('Inspecting %s', resource.FullName)
+                    logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
+                    logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
+                    logging.debug('Random Number = %s', str(rand))
 
-                # debug logging
-                logging.debug('Inspecting %s', resource.FullName)
-                logging.debug('%s Value = %s', local.configs["audit_attribute_1"], power_status)
-                logging.debug('%s Value = %s', local.configs["audit_attribute_2"], control_status)
-                logging.debug('Random Number = %s', str(rand))
+                    # if it's already off, try to turn some off anyway (5%)
+                    if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
+                        local.exclude_resource(path)
+                        local.hard_power_off(path)
+                        time.sleep(2)
+                        local.include_resource(path)
+                        local.devices_off_powerdown += 1
+                        logging.info('Power Off via API called on: %s', name)
 
-                # if it's already off, try to turn some off anyway (5%)
-                if power_status  == 'OFF' and rand <= local.configs["audit_gate_attribute_1"]:
-                    local.exclude_resource(path)
-                    local.hard_power_off(path)
-                    time.sleep(2)
-                    local.include_resource(path)
-                    local.devices_off_powerdown += 1
-                    logging.info('Power Off via API called on: %s', name)
+                    # I'm on and in a normal status - turn me off
+                    elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
+                        # add to reservation
+                        check = local.add_items_to_reservation(path)
 
-                # I'm on and in a normal status - turn me off
-                elif power_status == 'ON' and control_status == local.configs["audit_attribute_2_good"]:
-                    # add to reservation
-                    check = local.add_items_to_reservation(path)
+                        # call power off method
+                        if check:
+                            local.power_sweep_off(path, name)
+                            local.devices_normal_powerdown += 1
 
-                    # call power off method
-                    if check:
-                        local.power_sweep_off(path, name)
-                        local.devices_normal_powerdown += 1
+                    # I'm on and in a known bad status - random set try to turn off anyway
+                    elif power_status == 'ON' \
+                        and control_status == local.configs["audit_attribute_2_bad"] \
+                        and rand <= local.configs["audit_gate_attribute_2"]:
+                                    #add to reservation
+                        check = local.add_items_to_reservation(path)
 
-                # I'm on and in a known bad status - random set try to turn off anyway
-                elif power_status == 'ON' \
-                    and control_status == local.configs["audit_attribute_2_bad"] \
-                    and rand <= local.configs["audit_gate_attribute_2"]:
-                                #add to reservation
-                    check = local.add_items_to_reservation(path)
+                        # call power off method
+                        if check:
+                            local.power_sweep_off(path, name)
+                            local.devices_abnormal_powerdown += 1
 
-                    # call power off method
-                    if check:
-                        local.power_sweep_off(path, name)
-                        local.devices_abnormal_powerdown += 1
+                    # I'm on and in a all other bad status - random set try to turn off anyway
+                    elif power_status == 'ON'\
+                        and not control_status == local.configs["audit_attribute_2_bad"] \
+                            and rand <= local.configs["audit_gate_default"]:
+                                    # add to reservation
+                        check = local.add_items_to_reservation(path)
 
-                # I'm on and in a all other bad status - random set try to turn off anyway
-                elif power_status == 'ON'\
-                    and not control_status == local.configs["audit_attribute_2_bad"] \
-                        and rand <= local.configs["audit_gate_default"]:
-                                # add to reservation
-                    check = local.add_items_to_reservation(path)
+                        # call power off method
+                        if check:
+                            local.power_sweep_off(path, name)
+                            local.devices_abnormal_powerdown += 1
 
-                    # call power off method
-                    if check:
-                        local.power_sweep_off(path, name)
-                        local.devices_abnormal_powerdown += 1
-
-            else:
-                logging.debug('Skipped Auditing %s', resource.FullName)
-                logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
+                else:
+                    logging.debug('Skipped Auditing %s', resource.FullName)
+                    logging.debug('Conflicts(s) : %s', str(len(resource.Reservations)))
+            except CloudShellAPIError as err:
+                logging.warning(err.message)
+            except StandardError as e:
+                logging.error(e.message)
 
         # end master loop
         logging.info('Main Power Down Loop complete')
