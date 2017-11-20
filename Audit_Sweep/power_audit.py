@@ -243,8 +243,7 @@ class PowerAudit(object):
                 time.sleep(self.boot_time)  # let it boot up
                 self.set_attribute_value(device_name, 'Power_Control_Status', 'PASS')  # set power good
             except CloudShellAPIError as e:
-                self.set_attribute_value(device_name, 'Power_Control_Status',
-                                         'REQUIRES_CHECK')  # failed trying to power
+                self.set_attribute_value(device_name, 'Power_Control_Status', 'REQUIRES_CHECK')  # failed trying to power
                 logging.error(e.message)
         else:
             self.set_attribute_value(device_name, 'Power_Control_Status', 'FAIL_NO_COMMAND')
@@ -277,6 +276,7 @@ class PowerAudit(object):
         try:
             self.cs_session.AddResourcesToReservation(reservationId=self.res_id, resourcesFullPath=[device_name])
             logging.debug('{} Added to Reservation'.format(device_name))
+            time.sleep(2)  # adding a sleep here to make sure request is completed before moving on
         except CloudShellAPIError as err:
             logging.warning(err.message)
 
@@ -327,6 +327,7 @@ class PowerAudit(object):
 
     def _ping(self, address='8.8.8.8', count=1):
         check = False
+        found = True
         packet_Tx = count
         pass_rate = 100
 
@@ -340,23 +341,31 @@ class PowerAudit(object):
 
         raw = self._cmdline("ping -%s %s %s" % (count_type, packet_Tx, address))
 
-        if my_plat == 'darwin':
-            raw = raw.split('%')[0]
-            loss_rate = float(raw.split(' ')[-1])
-        elif my_plat == 'win32' or my_plat == 'windows':
-            raw = raw.split('%')[0]
-            raw = raw.split(' ')[-1]
-            loss_rate = float(raw[1:])
+        if 'timed' in raw or 'timeout' in raw:  # timed out is an autofail on a single ping
+            logging.debug('Ping returned TIMEOUT')
         else:
-            raw = raw.split('%')[0]
-            loss_rate = float(raw.split(' ')[-1])
+            if 'unknown' not in raw and 'could not find' not in raw:  # is resolving
+                if my_plat == 'darwin':
+                    raw = raw.split('%')[0]
+                    loss_rate = float(raw.split(' ')[-1])
+                elif my_plat == 'win32' or my_plat == 'windows':
+                    raw = raw.split('%')[0]
+                    raw = raw.split(' ')[-1]
+                    loss_rate = float(raw[1:])
+                else:
+                    raw = raw.split('%')[0]
+                    loss_rate = float(raw.split(' ')[-1])
 
-        packet_Rx = 100 - loss_rate
+                packet_Rx = 100 - loss_rate
 
-        if packet_Rx >= pass_rate:
-            check = True
-        logging.info('Pinged %s packets - %s%s Received' % (packet_Tx, packet_Rx, '%'))
-        return check
+                if packet_Rx >= pass_rate:
+                    check = True
+                logging.info('Pinged %s packets - %s%s Received' % (packet_Tx, packet_Rx, '%'))
+            else:  # doesn't resolve - fail and stop the recheck loop
+                found = False
+                logging.debug('Check Address, unable to find address to ping')
+
+        return check, found
 
     def console_pingable(self, device_name='', console_ip_attribute_name=DELL_CONSOLE_ATT_NAME):
         try:
@@ -371,13 +380,14 @@ class PowerAudit(object):
 
     def device_pingable(self, device_name=''):
         final_check = False
+        resolvable = True
         n = 0
         try:
             dev_address = self.cs_session.GetResourceDetails(resourceFullPath=device_name).Address
-            while (n < 18) and (not final_check):
-                final_check = self._ping(address=dev_address)
+            while (n < 15) and (not final_check) and (resolvable):
+                final_check, resolvable = self._ping(address=dev_address)
                 n += 1
-                if not final_check:
+                if not final_check and resolvable and n < 15:
                     time.sleep(10)  # sleep only if false
         except Exception, e:
             logging.error('Error trying to ping %s' % device_name)
@@ -459,7 +469,7 @@ class PowerAudit(object):
         details = self.cs_session.GetResourceDetails(resourceFullPath=device_name)
         network_check_name = self.configs['network_connect_att_name']
         if self._has_attribute(details.ResourceAttributes, network_check_name):
-            if self._ping(address=details.Address):
+            if self.device_pingable(device_name=device_name):  # ping mgmt address
                 self.set_attribute_value(device_name, network_check_name, 'PASS')
                 return True
             else:
@@ -477,8 +487,7 @@ class PowerAudit(object):
         if self._has_attribute(details.ResourceAttributes, console_check_name) and \
                 self._has_attribute(details.ResourceAttributes, console_ip_att):  # has both attributes
             self.check_console_port(device_name=device_name)  # normalize to Dell Std
-            console_ip = self.get_attribute_value(device_name, console_ip_att)  # get console IP
-            if self._ping(address=console_ip):  # ping console IP
+            if self.console_pingable(device_name=device_name):  # ping console IP
                 self.set_attribute_value(device_name, console_check_name, 'PASS')
                 return True
             else:
@@ -486,7 +495,7 @@ class PowerAudit(object):
                 self.set_attribute_value(device_name, self.configs['console_port_connect_att_name'], 'FAIL')
                 self.set_attribute_value(device_name, self.configs['prompt_att_name'], 'UNKNOWN')
         else:
-            logging.warning('Missing of of the following attributes on %s or %s on %s'
+            logging.warning('Missing of of the following attributes on %s or %s on %s' \
                             % (console_check_name, console_ip_att, device_name))
         return False
 
@@ -788,10 +797,10 @@ class PowerAudit(object):
                 if has_pdu:
                     # -> Power it on so we can look @ it
                     self.power_on(device_name=dev_name)  # may be powered on even if now PDU connection listed
+                self.inspect_network_connectivity(device_name=dev_name)  # assuming that a device w/o PDU is ON
                 self.inspect_connections(device_name=dev_name)
-                if self.inspect_network_connectivity(device_name=dev_name):
-                    if self.inspect_console_connectivity(device_name=dev_name):
-                        self.check_prompt(device_name=dev_name)
+                if self.inspect_console_connectivity(device_name=dev_name):
+                    self.check_prompt(device_name=dev_name)
                 # ->now power off
                 if has_pdu:
                     self.power_off(device_name=dev_name)

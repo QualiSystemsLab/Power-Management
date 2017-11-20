@@ -3,7 +3,7 @@ from power_audit import PowerAudit
 my_count = 0
 unit = PowerAudit()
 
-device = 'bcm-z9000-1'
+device = 'dt-s4810-26'
 # unit.check_prompt(device)
 
 # catch = unit._has_pdu_connection('st-sjc-s6000-6')
@@ -27,5 +27,9 @@ device = 'bcm-z9000-1'
 # my_msg = 'This is a test email'
 # unit.send_email(my_msg)
 
-result = unit.configs.get['logging_level', 'WARN']
-print result
+# result = unit.configs.get['logging_level', 'WARN']
+# print result
+
+my_list = [device]
+
+unit.select_audit(my_list)
