@@ -235,15 +235,22 @@ class PowerAudit(object):
             cmd_list.append(each.Name)
         return cmd_list
 
+    def _has_command(self, list_of_possibilities=[], list_of_commands=[]):
+        result = ''
+        temp = [i for i in list_of_possibilities if i in list_of_commands]
+        if len(temp) > 0:
+            result = temp[0]
+        return result
+
     def power_on(self, device_name=''):
         cmds = self._connected_cmd_list(device_name)
-        if self.configs['power_on'] in cmds:
+        if self._has_command(list_of_possibilities=self.configs["power_on"], list_of_commands=cmds) != '':
             try:
                 self.cs_session.PowerOnResource(reservationId=self.res_id, resourceFullPath=device_name)
                 time.sleep(self.boot_time)  # let it boot up
                 self.set_attribute_value(device_name, 'Power_Control_Status', 'PASS')  # set power good
             except CloudShellAPIError as e:
-                self.set_attribute_value(device_name, 'Power_Control_Status', 'REQUIRES_CHECK')  # failed trying to power
+                self.set_attribute_value(device_name, 'Power_Control_Status', 'REQUIRES_CHECK')  # failed powering on
                 logging.error(e.message)
         else:
             self.set_attribute_value(device_name, 'Power_Control_Status', 'FAIL_NO_COMMAND')
@@ -251,13 +258,13 @@ class PowerAudit(object):
 
     def power_off(self, device_name=''):
         cmds = self._connected_cmd_list(device_name)
-        if self.configs['power_off'] in cmds:
+        if self._has_command(list_of_possibilities=self.configs["power_off"], list_of_commands=cmds) != '':
             try:
                 self.cs_session.PowerOffResource(reservationId=self.res_id, resourceFullPath=device_name)
             except CloudShellAPIError as e:
                 logging.error(e.message)
         else:
-            self.set_attribute_value(device_name, 'Power_Control_Status', 'FAIL_NO_COMMAND')
+            self.set_attribute_value(device_name, 'Power_Control_Status', 'FAIL_NO_COMMAND')  # fail powering off
             logging.warn('%s does not have a power off connected command' % device_name)
 
     def get_resource_details(self, full_path):
@@ -817,6 +824,13 @@ class PowerAudit(object):
     def _set_reset_time(self):
         self.reset_time = time.mktime(time.localtime()) + self.configs['session_reset_time']
 
+    def _reservation_still_active(self, res_id):
+        status = self.cs_session.GetReservationDetails(res_id).ReservationDescription.Status
+        if status == 'Completed':
+            return False
+        else:
+            return True
+
     def full_audit(self):
         self.who_am_i = 'Full Audit Sweep'
         logging.info('%s Started' % self.who_am_i)
@@ -850,6 +864,12 @@ class PowerAudit(object):
                 except StandardError as err:
                     logging.warning(err.message)
                     self._start_cloudshell_session()  # in case of timeout
+
+                # Check that Reservation is still running
+                if not self._reservation_still_active(self.res_id):
+                    logging.error('Reservation Shows Completed during process - Exiting >> ID: {}'.format(self.res_id))
+                    break
+
             # end Main Loop
 
             # end reservation, done walking the list

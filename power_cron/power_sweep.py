@@ -286,7 +286,7 @@ class power_sweep(object):
             self.cs_session.PowerOffResource(resourceFullPath=resource_full_path)
             logging.info("API Power cmd call 'PowerOffResource' %s", resource_full_path)
         except CloudShellAPIError as err:
-            logging.warning(err.message)
+            logging.warning('{} - {}'.format(resource_full_path, err.message))
 
     def _has_shutdown(self, cmd_list):
         """
