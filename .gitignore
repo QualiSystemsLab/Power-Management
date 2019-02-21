@@ -63,4 +63,5 @@ cloudshell_config.yml
 */.idea
 */logs
 */dist
-*/deployment
+**/deployment
+power_cron/power_sweep_logs
