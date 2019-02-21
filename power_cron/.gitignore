@@ -59,3 +59,8 @@ coverage.xml
 target/
 cloudshell_config.yml
 .idea/
+.gitignore
+temp/power_sweep_py_2017_01_13_09_45.csv
+temp/power_sweep_py_2017_01_13_13_29.csv
+temp/power_sweep_py_2017_01_16_16_17.csv
+temp/power_sweep_py_2017_01_16_16_47.csv

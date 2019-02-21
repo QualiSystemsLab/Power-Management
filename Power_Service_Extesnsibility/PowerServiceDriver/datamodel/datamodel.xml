@@ -8,7 +8,7 @@
     </AttributeInfo>
   </Attributes>
   <ResourceFamilies>
-    <ResourceFamily Name="Extensibility Services" Description="" IsAdminOnly="true" IsService="true" ServiceType="Regular">
+    <ResourceFamily Name="Power" Description="" IsAdminOnly="true" IsService="true" ServiceType="Regular">
       <AttachedAttributes>
       </AttachedAttributes>
       <AttributeValues>
@@ -20,6 +20,6 @@
     
   </ResourceFamilies>
   <DriverDescriptors>
-      <DriverDescriptor Name="{{ cookiecutter.driver_name }}" DriverType="PythonDriver" />
+      <DriverDescriptor Name="Power Service Extensibility" DriverType="PythonDriver" />
   </DriverDescriptors>
 </DataModelInfo>

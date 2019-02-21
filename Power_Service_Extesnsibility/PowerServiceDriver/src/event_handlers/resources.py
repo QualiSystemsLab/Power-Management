@@ -1,9 +1,13 @@
 from input_converters import *
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from device_power_cmds import *
+from cloudshell.core.logger.qs_logger import get_qs_logger
+from near_term_reservation import NearTermReservations
 
 SEVERITY_INFO = 20
 SEVERITY_ERROR = 40
+
+CHECK_FOR_POWER_MGMT_BOOLEAN = True  # Look for the Std Attribute "Power Management"
 
 
 class QualiError(Exception):
@@ -17,10 +21,28 @@ class QualiError(Exception):
 
 class ResourcesEvents:
     def __init__(self, api_session, reservation_id):
+        """
+        :param CloudShellAPISession api_session: Active CloudShell API Connection
+        :param string reservation_id: Current Context Reservation API
+        """
         self.logger = get_qs_logger("extensibility", "QS", "service")
         self.api_session = api_session
         self.id = reservation_id
-        self.device_pwr = device_power_mgmt(api_session, reservation_id)
+        self.device_pwr = DevicePowerMgmt(api_session, reservation_id)
+        self.reservation_checker = NearTermReservations(self.api_session, self.id)
+        self.who_am_i = 'resources.py'
+
+    def _power_mgmt_positive(self, device_name):
+        if CHECK_FOR_POWER_MGMT_BOOLEAN:
+            try:
+                # check the Shell Standard Attribute 'Power Management' which is a Boolean
+                return self.api_session.GetAttributeValue(resourceFullPath=device_name,
+                                                          attributeName='Power Management').Value
+            except CloudShellAPIError:
+                # if the target doesn't have the attribute - still control Power? (True or False below)
+                return True
+        else:
+            return True
 
     def after_resources_changed(self, context, action_details, resources_details, service_details, removed_resources,
                                 added_resources, modified_resources):
@@ -50,9 +72,10 @@ class ResourcesEvents:
         # modifiedResources = ResourcesDetails(modified_resources)
 
         res_list = []
-        for item in addedResources.resources:
-            if '/' not in item.fullname:
-                res_list.append(item.name)
+        for resource in addedResources.resources:
+            if '/' not in resource.fullname:
+                if self._power_mgmt_positive(resource.name):
+                    res_list.append(resource.name)
 
         # for devices added, see if they have "Power ON" and call it
         # ##### DO POWER ON ###### #
@@ -89,9 +112,11 @@ class ResourcesEvents:
         # modifiedResources = ResourcesDetails(modified_resources)
 
         res_list = []
-        for item in removedResources.resources:
-            if '/' not in item.fullname:
-                res_list.append(item.name)
+        for resource in removedResources.resources:
+            if '/' not in resource.fullname:
+                if self.reservation_checker.no_upcoming_reservations(resource.name) and\
+                        self._power_mgmt_positive(resource.name):
+                    res_list.append(resource.name)
 
         # for devices being removed, check for Shutdown, then power off, call if it has one
         # ##### DO POWER OFF ###### #

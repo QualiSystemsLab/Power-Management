@@ -1,0 +1,4 @@
+Date,ResourceName,Console_IP_Pingable,Console_Port_Status,Connections,PDU_Connected,Rack,Mgmt_IP_Pingable,Reserved
+2017-04-21 16:10:00,st-sjc-s6000-6,PASS,FAIL,Direct,TRUE,14-2,FAIL,Not in Reservations
+2017-04-21 16:10:00,st-sjc-s6000-1,PASS,FAIL,Direct,TRUE,14-4,FAIL,Not in Reservations
+2017-04-21 16:10:00,st-sjc-s6000-10,PASS,FAIL,NONE,TRUE,15-10,PASS,Reserved

@@ -104,7 +104,6 @@ class PowerService (ResourceDriverInterface):
         address = context.connectivity.server_address
         domain = context.reservation.domain
         token = context.connectivity.admin_auth_token
-
         return ReservationEvents(self.get_cs_session(address, domain, token), context.reservation.reservation_id).\
             on_reservation_started(context, resourcesDetails, serviceDetails)
 
@@ -199,7 +198,7 @@ class PowerService (ResourceDriverInterface):
                                     serviceDetails, resourcesRemoved, resourcesAdded, modifiedResources)
 
     def BeforeResourcesChanged_Sync(self, context, actionDetails, resourcesDetails, serviceDetails, resourcesRemoved,
-                               resourcesAdded, resourcesModified):
+                                    resourcesAdded, resourcesModified):
         """
         Intervene before a resource is added, removed, or has an attribute changed
         :param ResourceCommandContext context: the context the command runs on
@@ -336,8 +335,6 @@ class PowerService (ResourceDriverInterface):
 #             before_my_service_removed(context, actionDetails, resourcesDetails, serviceDetails,
 #                                       oldServiceAttributeDetails, servicesRemoved, servicesAdded, modifiedServices,
 #                                       servicesModifiedAttributes)
-
-
     # </editor-fold>
 
     def cleanup(self):

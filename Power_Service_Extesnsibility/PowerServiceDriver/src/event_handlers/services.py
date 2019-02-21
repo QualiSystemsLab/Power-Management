@@ -89,7 +89,6 @@ class ServicesEvents:
         # attributePrechange = AttributesDetails(old_service_attributes_details)
         # attributesPostChange = AttributesDetails(services_modified_attributes)
 
-
     def before_services_changed(self, context, action_details, resources_details, service_details,
                                 old_service_attributes_details, removed_services, added_services, modified_services,
                                 services_modified_attributes):
