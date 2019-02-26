@@ -1,3 +1,8 @@
+To use this:
+Will need to copy the 'Extensions' folder from the installer into the CloudShell Server folder & restart the server
+
+
+
 **Server Extensibility Using Cloudshell Services**
 
 read more about this shell [here](https://github.com/QualiSystemsLab/Service-Extesnsibility-Template/blob/master/%7B%7Bcookiecutter.project_slug%7D%7D/readme.rst)
