@@ -63,7 +63,6 @@ cloudshell_config.yml
 */.idea
 */*/.idea
 */logs
-*/dist
 */deployment
 power_cron/power_sweep_logs
 PowerServiceDriver/src/powerservice.zip
