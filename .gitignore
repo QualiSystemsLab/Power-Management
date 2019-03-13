@@ -61,8 +61,14 @@ cloudshell_config.yml
 
 .idea
 */.idea
+*/*/.idea
 */logs
 */dist
 */deployment
 power_cron/power_sweep_logs
 PowerServiceDriver/src/powerservice.zip
+*/venv
+*/src/debug_info.txt
+*/*/quali_config.json
+
+
