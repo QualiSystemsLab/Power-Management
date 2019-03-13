@@ -4,6 +4,6 @@
   "domain" : "Global",
   "cloudshell_api_port" :"82",
   "server_address" : "localhost",
-  "reservation_id" : "11933311-d50a-45d5-aa99-74e5c00bfeb4",
+  "reservation_id" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "command_parameters" : { "PARAM_NAME" : "PARAM_VALUE"    }
 }
