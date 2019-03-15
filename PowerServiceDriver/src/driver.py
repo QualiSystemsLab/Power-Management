@@ -1,7 +1,7 @@
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.driver_context import InitCommandContext, ResourceCommandContext
 from PowerLib.Events import *
-# from PowerLib.ShellDebugHelper import *
+from PowerLib.ShellDebugHelper import *
 
 
 class PowerService (ResourceDriverInterface):
@@ -31,8 +31,6 @@ class PowerService (ResourceDriverInterface):
         :param str resourcesAdded: details about the removed resources
         :param str modifiedResources: details about the modified resources
         """
-        print "Added:" + resourcesAdded
-        return
 
         return after_resources_changed(context, resourcesAdded)
 
@@ -63,6 +61,6 @@ class PowerService (ResourceDriverInterface):
 if __name__ == "__main__":
     # driver = PowerService()
     # driver.AfterResourcesChanged('context','action','resource','service','removed','added','modified')
-    # show_recording()
-    # playback()
+    show_recording(PowerService)
+    playback(PowerService)
     pass

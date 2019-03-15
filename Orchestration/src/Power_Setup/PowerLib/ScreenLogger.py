@@ -1,6 +1,7 @@
 from cloudshell.shell.core.session.logging_session import LoggingSessionContext
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.shell.core.driver_context import ResourceCommandContext
+import cloudshell.api.cloudshell_api as cs_api
 import logging
 # This include for functions that include this library
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -41,7 +42,7 @@ def get_reservation_output_logger(context):
     """
     logger = LoggingSessionContext(context).get_logger_for_context(context)
 
-    return add_screen_to_logger(logger, CloudShellSessionContext(context).get_api(), context.reservation.reservation_id)
+    return add_screen_to_logger(logger, cs_api.CloudShellAPISession(context.connectivity.server_address, domain=context.reservation.domain, token_id=context.connectivity.admin_auth_token), context.reservation.reservation_id)
 
 
 class ReservationOutputHandler(logging.Handler):

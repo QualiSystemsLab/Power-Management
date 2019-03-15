@@ -1,11 +1,12 @@
 from cloudshell.api.common_cloudshell_api import CloudShellAPIError
 # from cloudshell.api.cloudshell_api import ReservedResourceInfo
 from ScreenLogger import *
-from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
+# from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from Resources import ResourceDetails
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 from cloudshell.api.cloudshell_api import CloudShellAPISession
+import cloudshell.api.cloudshell_api as cs_api
 
 
 class PowerLib(object):
@@ -43,7 +44,7 @@ class PowerLib(object):
         self = cls()
         self.logger = get_reservation_output_logger(context)
 
-        self.api_session = CloudShellSessionContext(context).get_api()
+        self.api_session = cs_api.CloudShellAPISession(context.connectivity.server_address, domain=context.reservation.domain, token_id=context.connectivity.admin_auth_token)
         self.reservation_id = context.reservation.reservation_id
         return self
 
