@@ -1,0 +1,7 @@
+shell:
+    name: PowerServiceDriver
+    author: ksaper
+    email: kimo.s@quali.com
+    description: Server Extensibility Driver for Power Service
+    version: 1.0.2
+    driver_name: Power Service Extensibility
