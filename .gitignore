@@ -11,7 +11,7 @@ __pycache__/
 env/
 build/
 develop-eggs/
-dist/
+# dist/
 downloads/
 eggs/
 .eggs/
@@ -64,6 +64,6 @@ logs/
 deployment/
 power_cron/power_sweep_logs
 PowerServiceDriver/src/powerservice.zip
-venv
+venv/
 debug_info.txt
 quali_config.json
