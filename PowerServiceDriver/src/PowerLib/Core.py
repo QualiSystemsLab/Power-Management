@@ -1,7 +1,5 @@
 from cloudshell.api.common_cloudshell_api import CloudShellAPIError
-# from cloudshell.api.cloudshell_api import ReservedResourceInfo
 from ScreenLogger import *
-# from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from Resources import ResourceDetails
 from cloudshell.workflow.orchestration.sandbox import Sandbox
@@ -17,9 +15,12 @@ class PowerLib(object):
         self.reservation_id = None
 
         # Command Lists
-        self.power_on_command_names = ["power_on", "Power On", "Power ON", "PowerOn"]  # whitelist for power on commands
-        self.power_off_command_names = ["power_off", "Power Off", "Power OFF", "PowerOff"]  # whitelist for power off commands
-        self.shutdown_command_names = ["Graceful Shutdown", "shutdown", "graceful_shutdown", "Graceful_Shutdown"]  # whitelist for shutdown cmds
+        self.power_on_command_names = ["power_on", "Power On", "Power ON",
+                                       "PowerOn"]
+        self.power_off_command_names = ["power_off", "Power Off", "Power OFF",
+                                        "PowerOff"]
+        self.shutdown_command_names = ["Graceful Shutdown", "shutdown",
+                                       "graceful_shutdown", "Graceful_Shutdown"]
 
     @classmethod
     def from_sandbox(cls, sandbox):
@@ -29,7 +30,9 @@ class PowerLib(object):
         :return:
         """
         self = cls()
-        self.logger = add_screen_to_logger(sandbox.logger, sandbox.automation_api, sandbox.reservationContextDetails.id)
+        self.logger = add_screen_to_logger(sandbox.logger,
+                                           sandbox.automation_api,
+                                           sandbox.reservationContextDetails.id)
         self.api_session = sandbox.automation_api
         self.reservation_id = sandbox.reservationContextDetails.id
         return self
@@ -44,7 +47,10 @@ class PowerLib(object):
         self = cls()
         self.logger = get_reservation_output_logger(context)
 
-        self.api_session = cs_api.CloudShellAPISession(context.connectivity.server_address, domain=context.reservation.domain, token_id=context.connectivity.admin_auth_token)
+        self.api_session = cs_api.CloudShellAPISession(
+            context.connectivity.server_address,
+            domain=context.reservation.domain,
+            token_id=context.connectivity.admin_auth_token)
         self.reservation_id = context.reservation.reservation_id
         return self
 
@@ -55,7 +61,9 @@ class PowerLib(object):
         :param ResourceDetails resource: The resource to power on
         :return:
         """
-        command = [x.Name for x in self.api_session.GetResourceConnectedCommands(resource.fullname).Commands if x.Name in self.power_on_command_names]
+        command = [x.Name for x in
+                   self.api_session.GetResourceConnectedCommands(resource.fullname).Commands
+                   if x.Name in self.power_on_command_names]
         if len(command) == 0:
             return None
         elif len(command) == 1:
@@ -72,7 +80,6 @@ class PowerLib(object):
         :return:
         :rtype
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
 
         check = self.is_there_a_reason_to_not_power_on(resource)
         if check is not None:
@@ -83,8 +90,8 @@ class PowerLib(object):
             return "No Power-On Command"
 
         try:
-            # self.api_session.ExecuteResourceConnectedCommand(self.reservation_id, resource.fullname, command, commandTag='power', printOutput=True)
-            self.api_session.PowerOnResource(self.reservation_id, resource.fullname)
+            self.api_session.PowerOnResource(self.reservation_id,
+                                             resource.fullname)
         except CloudShellAPIError as e:
             self.logger.error(e)
             return e.message
@@ -96,7 +103,9 @@ class PowerLib(object):
         :param ResourceDetails resource:
         :return:
         """
-        command = [x.Name for x in self.api_session.GetResourceConnectedCommands(resource.fullname).Commands if x.Name in self.power_off_command_names]
+        command = [x.Name for x in
+                   self.api_session.GetResourceConnectedCommands(resource.fullname).Commands
+                   if x.Name in self.power_off_command_names]
         if len(command) == 0:
             return None
         elif len(command) == 1:
@@ -113,7 +122,6 @@ class PowerLib(object):
         :return:
         :rtype
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
 
         check = self.is_there_a_reason_to_not_power_off(resource)
         if check is not None:
@@ -124,8 +132,8 @@ class PowerLib(object):
             return "No Power-Off Command"
 
         try:
-            # self.api_session.ExecuteResourceConnectedCommand(self.reservation_id, resource.fullname, command, commandTag='power', printOutput=True)
-            self.api_session.PowerOffResource(self.reservation_id, resource.fullname)
+            self.api_session.PowerOffResource(self.reservation_id,
+                                              resource.fullname)
         except CloudShellAPIError as e:
             self.logger.error(e)
             return e.message
@@ -139,7 +147,6 @@ class PowerLib(object):
         :return:
         :rtype
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
 
         check = self.is_there_a_reason_to_not_power_off(resource)
         if check is not None:
@@ -157,7 +164,9 @@ class PowerLib(object):
         :param ResourceDetails resource: The Resource
         :return: Shutdown Command or 'None'
         """
-        command = [x.Name for x in self.api_session.GetResourceCommands(resource.fullname).Commands if x.Name in self.shutdown_command_names]
+        command = [x.Name for x in
+                   self.api_session.GetResourceCommands(resource.fullname).Commands
+                   if x.Name in self.shutdown_command_names]
         if len(command) == 0:
             return None
         elif len(command) == 1:
@@ -173,7 +182,6 @@ class PowerLib(object):
         :param ResourceDetails resource:
         :return:
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
 
         check = self.is_there_a_reason_to_not_power_off(resource)
         if check is not None:
@@ -184,7 +192,11 @@ class PowerLib(object):
             return "No Shutdown Command"
 
         try:
-            self.api_session.ExecuteResourceCommand(self.reservation_id, resource.fullname, command, printOutput=True)
+            self.api_session.ExecuteCommand(self.reservation_id,
+                                            targetName=resource.fullname,
+                                            targetType='Resource',
+                                            commandName=command,
+                                            printOutput=True)
         except CloudShellAPIError as e:
             self.logger.error(e)
             return e.message
@@ -196,7 +208,10 @@ class PowerLib(object):
         :param ResourceDetails resource:
         :return:
         """
-        values = [x.Value for x in self.api_session.GetResourceDetails(resource.fullname).ResourceAttributes if x.Name.endswith(".Power Management") or x.Name == "Power Management"]
+        values = [x.Value for x in
+                  self.api_session.GetResourceDetails(resource.fullname).ResourceAttributes
+                  if x.Name.endswith(".Power Management")
+                  or x.Name == "Power Management"]
         if len(values) == 0:
             return None
         elif len(values) == 1:
@@ -214,7 +229,6 @@ class PowerLib(object):
         :return: None or string specifying the reason
         :rtype str
         """
-        self.logger.debug("<-- Called for {}".format(resource.fullname))
         if resource.subresource is True:
             return "No power-control for sub-resources"
 
@@ -224,7 +238,6 @@ class PowerLib(object):
         if power_flag is False:
             return "Power Management Attribute set to False."
 
-        # self.logger.debug("{} share value is {}".format(resource.fullname, resource.isShared))
         if resource.isShared is True:
             return "Can't power control shared resources"
 
@@ -239,8 +252,6 @@ class PowerLib(object):
         :return: None or string specifying the reason
         :rtype str
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
-
         # Perform General Checks
         general_result = self.is_there_a_reason_to_not_control_power(resource)
         if general_result is not None:
@@ -262,8 +273,6 @@ class PowerLib(object):
         :return: None or string specifying the reason
         :rtype str
         """
-        # self.logger.debug("<-- Called for {}".format(resource.fullname))
-
         # Perform General Checks
         general_result = self.is_there_a_reason_to_not_control_power(resource)
         if general_result is not None:
@@ -275,7 +284,8 @@ class PowerLib(object):
         if off_command is None and shutdown_command is None:
             return "No power off or shutdown command available for resource"
 
-        # Todo Add check for resource is in another reservation - Not needed since we don't work with shared resources???
+        # Todo Add check for resource is in another reservation
+        # Todo  -- Not needed since we don't work with shared resources???
 
         # No reason
         return None
@@ -311,8 +321,8 @@ class PowerLib(object):
         :return:
         """
         for resource in resources:  # type: ResourceDetails
-            # TODO uncomment
             if resource.subresource is True:
+                # Leave this uncommented
                 self.logger.debug("Silently Skipping Sub-resource {}".format(resource.fullname))
                 continue
             #     reason_to_skip = self.is_there_a_reason_to_not_power_off(resource)
@@ -326,7 +336,6 @@ class PowerLib(object):
 
     def power_off_resources(self, resources):
         for resource in resources:
-            # TODO uncomment
             if resource.subresource is True:
                 self.logger.debug("Silently Skipping Sub-resource {}".format(resource.fullname))
                 continue
