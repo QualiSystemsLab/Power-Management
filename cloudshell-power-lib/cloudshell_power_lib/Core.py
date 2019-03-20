@@ -236,7 +236,7 @@ class PowerLib(object):
         if power_flag is None:
             return "Power Management Attribute Not Found. Default to not controlling power"
         if power_flag is False:
-            return "Power Management Attribute set to False."
+            return "Power Management Attribute set to False"
 
         if resource.isShared is True:
             return "Can't power control shared resources"
