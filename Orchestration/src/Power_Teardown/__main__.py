@@ -1,4 +1,4 @@
-from PowerLib.Orchestration import power_off_resources_in_sandbox
+from cloudshell_power_lib.Orchestration import power_off_resources_in_sandbox
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 from cloudshell.workflow.orchestration.teardown.default_teardown_orchestrator import DefaultTeardownWorkflow
 import cloudshell.helpers.scripts.cloudshell_dev_helpers as dev_helpers

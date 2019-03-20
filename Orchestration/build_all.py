@@ -6,6 +6,7 @@ root_dir = 'src'
 scripts = os.listdir(root_dir)
 for script in scripts:
     zipfile = os.path.join('dist', script + '.zip')
+    print "Building {}".format(zipfile)
     with ZipFile(zipfile, 'w') as build:
         back = os.getcwd()
         os.chdir(os.path.join(root_dir, script))

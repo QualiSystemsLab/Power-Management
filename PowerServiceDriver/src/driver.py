@@ -1,7 +1,7 @@
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.driver_context import InitCommandContext, ResourceCommandContext
-from PowerLib.Events import *
-# from PowerLib.ShellDebugHelper import *
+from cloudshell_power_lib.Events import *
+# from cloudshell_power_lib.ShellDebugHelper import *
 
 
 class PowerService (ResourceDriverInterface):
