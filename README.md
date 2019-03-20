@@ -91,9 +91,3 @@ The Power Service
 
 ### PowerLib
 The common power library
-
-# OLD
-
-Power management works on a per-resource basis, and is controlled by several factors. To enable power management for a resource:
-    The power management attribute should be set to True. (If the attribute is not found, default is False)
-    The resource should have 1 or more 'Power Port's connected to a PDU with 'PowerOn' and 'PowerOff' connected commands available to it.
