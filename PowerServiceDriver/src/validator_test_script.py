@@ -51,7 +51,7 @@ for cmd_name in cmd_list:
         cmd_check = True
         break
 
-print my_cmd
+print(my_cmd)
 
 if cmd_check:
     full_detail = cs_helper.get_api_session().GetResourceDetails(who_am_i)
