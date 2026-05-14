@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cloudshell-power-lib",
-    version="1.0.0",
+    version="1.0.1",
     author="Quali Customer Success",
     author_email="tim.s@quali.com",
     description="Quali Power Management support library",
