@@ -63,6 +63,6 @@ class ResourcesDetails:
         :return:
         """
         resources_out = []
-        for (key, reserved_resource_info) in resources.iteritems():
+        for (key, reserved_resource_info) in resources.items():
             resources_out.append(ResourceDetails.create_from_ReservedResourceInfo(reserved_resource_info))
         return resources_out

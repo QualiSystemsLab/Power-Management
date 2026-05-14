@@ -10,11 +10,11 @@ rd /S /Q "dist"
 
 echo.
 echo Updating Dependencies
-@py -2 -m pip install --upgrade setuptools wheel twine
+@py -3 -m pip install --upgrade setuptools wheel twine
 
 echo.
 echo Building Package
-py -2 setup.py sdist bdist_wheel
+py -3 setup.py sdist bdist_wheel
 
 echo.
 echo Copying to local Pypi

@@ -1,7 +1,7 @@
 from cloudshell.api.common_cloudshell_api import CloudShellAPIError
-from ScreenLogger import *
+from .ScreenLogger import *
 from cloudshell.shell.core.driver_context import ResourceCommandContext
-from Resources import ResourceDetails
+from .Resources import ResourceDetails
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 import cloudshell.api.cloudshell_api as cs_api
@@ -69,7 +69,7 @@ class PowerLib(object):
         elif len(command) == 1:
             return command[0]
         else:
-            self.logger.warn("Multiple power-on commands found")
+            self.logger.warning("Multiple power-on commands found")
             return command[0]
 
     def power_on_resource(self, resource):
@@ -94,7 +94,7 @@ class PowerLib(object):
                                              resource.fullname)
         except CloudShellAPIError as e:
             self.logger.error(e)
-            return e.message
+            return str(e)
         return None
 
     def get_power_off_command(self, resource):
@@ -111,7 +111,7 @@ class PowerLib(object):
         elif len(command) == 1:
             return command[0]
         else:
-            self.logger.warn("Multiple power-off commands found")
+            self.logger.warning("Multiple power-off commands found")
             return command[0]
 
     def force_power_off_resource(self, resource):
@@ -136,7 +136,7 @@ class PowerLib(object):
                                               resource.fullname)
         except CloudShellAPIError as e:
             self.logger.error(e)
-            return e.message
+            return str(e)
         return None
 
     def power_off_resource(self, resource):
@@ -172,7 +172,7 @@ class PowerLib(object):
         elif len(command) == 1:
             return command[0]
         else:
-            self.logger.warn("Multiple shutdown commands found")
+            self.logger.warning("Multiple shutdown commands found")
             return command[0]
         pass
 
@@ -199,7 +199,7 @@ class PowerLib(object):
                                             printOutput=True)
         except CloudShellAPIError as e:
             self.logger.error(e)
-            return e.message
+            return str(e)
         return None
 
     def _check_power_mgmt_flag(self, resource):
@@ -217,7 +217,7 @@ class PowerLib(object):
         elif len(values) == 1:
             return values[0]
         else:
-            self.logger.warn("Multiple Power Management Flags found")
+            self.logger.warning("Multiple Power Management Flags found")
             return values[0]
 
     def is_there_a_reason_to_not_control_power(self, resource):

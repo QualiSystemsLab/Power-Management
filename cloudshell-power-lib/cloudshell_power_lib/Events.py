@@ -1,6 +1,6 @@
 from cloudshell.shell.core.driver_context import ResourceCommandContext
-from Resources import ResourcesDetails
-from Core import PowerLib
+from .Resources import ResourcesDetails
+from .Core import PowerLib
 
 
 def after_resources_changed(context, added_resources):
